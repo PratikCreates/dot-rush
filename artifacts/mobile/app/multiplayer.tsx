@@ -15,12 +15,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
+import { useLobbyWs } from "@/hooks/useLobbyWs";
 import { getPositionPoints } from "@/engine/scoring";
 
 type LobbyMode = "menu" | "host" | "join" | "countdown";
 
-const MP_MODES = [
+const MP_MODES: Array<{ id: string; label: string; desc: string; icon: IoniconName; color: string }> = [
   { id: "race", label: "CLASSIC RACE", desc: "2-4 players, first correct wins", icon: "flag", color: "#FF3CAC" },
   { id: "best5", label: "BEST OF 5", desc: "Cumulative score over 5 rounds", icon: "repeat", color: "#FFD700" },
   { id: "team", label: "TEAM 2v2", desc: "Dots + Color split between teammates", icon: "people", color: "#36D6FF" },
@@ -52,6 +54,8 @@ export default function MultiplayerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
+  const ws = useLobbyWs();
+
   const [lobby, setLobby] = useState<LobbyMode>("menu");
   const [roomCode, setRoomCode] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -74,33 +78,26 @@ export default function MultiplayerScreen() {
   const gradStart = colors.isDark ? "#0D0020" : "#FFF0FC";
   const gradEnd = colors.isDark ? "#001020" : "#D0F0FF";
 
-  // Simulate players joining over time (demo mode)
+  // Sync WebSocket room state → local state
   useEffect(() => {
-    if (lobby === "host" && isHost) {
-      const timer = setTimeout(() => {
-        setPlayers((prev) => {
-          if (prev.length < 4) {
-            const names = ["Alex", "Sam", "Jordan", "Riley"];
-            const idx = prev.length - 1;
-            if (idx < names.length) {
-              return [
-                ...prev,
-                {
-                  id: `player-${idx}`,
-                  name: names[idx],
-                  isHost: false,
-                  team: (prev.length % 2) + 1,
-                  ready: Math.random() > 0.3,
-                },
-              ];
-            }
-          }
-          return prev;
-        });
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [lobby, players.length, isHost]);
+    if (!ws.roomState) return;
+    const rs = ws.roomState;
+    setSelectedMode(rs.mode);
+    setRoomCode(rs.code);
+    setPlayers(
+      rs.players.map((p) => ({
+        id: p.id,
+        name: p.isHost ? `${p.name} (Host)` : p.name,
+        isHost: p.isHost,
+        team: p.team,
+        ready: p.ready,
+      }))
+    );
+    setBannedPlayers(
+      rs.banned.map((b) => ({ id: b.id, name: b.name, bannedAt: Date.now() }))
+    );
+    setIsHost(ws.playerId === rs.hostId);
+  }, [ws.roomState, ws.playerId]);
 
   const startCountdown = () => {
     setLobby("countdown");
@@ -146,27 +143,68 @@ export default function MultiplayerScreen() {
     };
   }, []);
 
+  // Handle WebSocket events (defined after startCountdown to avoid forward reference)
+  useEffect(() => {
+    if (!ws.event) return;
+    switch (ws.event.kind) {
+      case "game_starting":
+        startCountdown();
+        break;
+      case "kicked":
+        Alert.alert("Kicked", "You were kicked from the room.");
+        setLobby("menu");
+        break;
+      case "banned":
+        Alert.alert("Banned", "You have been banned from this room.");
+        setLobby("menu");
+        break;
+      case "error":
+        Alert.alert("Error", ws.event.message);
+        break;
+      default:
+        break;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.event]);
+
   const handleHost = () => {
-    const code = generateRoomCode();
-    setRoomCode(code);
-    setIsHost(true);
-    setPlayers([{ id: "host", name: "You (Host)", isHost: true, team: 1, ready: true }]);
-    setBannedPlayers([]);
-    setLobby("host");
+    if (ws.connected) {
+      // Use real WebSocket room creation
+      ws.createRoom("You", selectedMode);
+      setIsHost(true);
+      setBannedPlayers([]);
+      setLobby("host");
+    } else {
+      // Local simulation fallback (no server reachable)
+      const code = generateRoomCode();
+      setRoomCode(code);
+      setIsHost(true);
+      setPlayers([{ id: "host", name: "You (Host)", isHost: true, team: 1, ready: true }]);
+      setBannedPlayers([]);
+      setLobby("host");
+    }
   };
 
   const handleJoin = () => {
-    if (joinCode.length !== 4) {
-      Alert.alert("Invalid Code", "Please enter a 4-digit room code.");
+    if (joinCode.length < 4) {
+      Alert.alert("Invalid Code", "Please enter a 4-character room code.");
       return;
     }
-    setRoomCode(joinCode);
-    setIsHost(false);
-    setPlayers([
-      { id: "host", name: "Host", isHost: true, team: 1, ready: true },
-      { id: "me", name: "You", isHost: false, team: 2, ready: false },
-    ]);
-    setLobby("join");
+    if (ws.connected) {
+      ws.joinRoom(joinCode.toUpperCase(), "You");
+      setRoomCode(joinCode.toUpperCase());
+      setIsHost(false);
+      setLobby("join");
+    } else {
+      // Local simulation fallback
+      setRoomCode(joinCode);
+      setIsHost(false);
+      setPlayers([
+        { id: "host", name: "Host", isHost: true, team: 1, ready: true },
+        { id: "me", name: "You", isHost: false, team: 2, ready: false },
+      ]);
+      setLobby("join");
+    }
   };
 
   // ── Admin: Kick player ────────────────────────────────────────────────────
@@ -180,7 +218,11 @@ export default function MultiplayerScreen() {
           text: "Kick",
           style: "destructive",
           onPress: () => {
-            setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+            if (ws.connected) {
+              ws.kickPlayer(player.id);
+            } else {
+              setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+            }
             setShowActionSheet(false);
           },
         },
@@ -199,11 +241,15 @@ export default function MultiplayerScreen() {
           text: "Ban",
           style: "destructive",
           onPress: () => {
-            setPlayers((prev) => prev.filter((p) => p.id !== player.id));
-            setBannedPlayers((prev) => [
-              ...prev,
-              { id: player.id, name: player.name, bannedAt: Date.now() },
-            ]);
+            if (ws.connected) {
+              ws.banPlayer(player.id);
+            } else {
+              setPlayers((prev) => prev.filter((p) => p.id !== player.id));
+              setBannedPlayers((prev) => [
+                ...prev,
+                { id: player.id, name: player.name, bannedAt: Date.now() },
+              ]);
+            }
             setShowActionSheet(false);
           },
         },
@@ -218,6 +264,9 @@ export default function MultiplayerScreen() {
 
   // ── Admin: Change mode ────────────────────────────────────────────────────
   const changeMode = (modeId: string) => {
+    if (ws.connected) {
+      ws.changeMode(modeId);
+    }
     setSelectedMode(modeId);
     setShowModeSheet(false);
   };
@@ -377,7 +426,7 @@ export default function MultiplayerScreen() {
                 activeOpacity={0.8}
               >
                 <View style={[styles.modeIcon, { backgroundColor: m.color + "22" }]}>
-                  <Ionicons name={m.icon as any} size={22} color={m.color} />
+                  <Ionicons name={m.icon} size={22} color={m.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.modeLabel, { color: colors.foreground }]}>{m.label}</Text>
@@ -473,7 +522,7 @@ export default function MultiplayerScreen() {
             {/* Current mode + admin change */}
             <View style={[styles.currentModeBar, { backgroundColor: colors.card, borderColor: currentMode.color + "44" }]}>
               <View style={[styles.modeIcon, { backgroundColor: currentMode.color + "22" }]}>
-                <Ionicons name={currentMode.icon as any} size={18} color={currentMode.color} />
+                <Ionicons name={currentMode.icon} size={18} color={currentMode.color} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.sectionLabel, { color: colors.mutedForeground, marginBottom: 0 }]}>CURRENT MODE</Text>
@@ -600,7 +649,13 @@ export default function MultiplayerScreen() {
                     opacity: players.length >= 2 ? 1 : 0.6,
                   },
                 ]}
-                onPress={startCountdown}
+                onPress={() => {
+                  if (ws.connected) {
+                    ws.startGame();
+                  } else {
+                    startCountdown();
+                  }
+                }}
                 activeOpacity={0.85}
                 testID="btn-start-lobby"
               >
@@ -654,7 +709,7 @@ export default function MultiplayerScreen() {
                 onPress={() => changeMode(m.id)}
               >
                 <View style={[styles.modeIcon, { backgroundColor: m.color + "22" }]}>
-                  <Ionicons name={m.icon as any} size={18} color={m.color} />
+                  <Ionicons name={m.icon} size={18} color={m.color} />
                 </View>
                 <Text style={[styles.sheetOptionText, { color: colors.foreground }]}>{m.label}</Text>
                 {selectedMode === m.id && <Ionicons name="checkmark-circle" size={18} color={m.color} />}

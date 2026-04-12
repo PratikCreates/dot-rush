@@ -17,6 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useGame, GameMode } from "@/context/GameContext";
@@ -380,7 +381,7 @@ function PowerBtn({
   onPress,
   disabled,
 }: {
-  icon: string;
+  icon: IoniconName;
   label: string;
   color: string;
   onPress: () => void;
@@ -400,7 +401,7 @@ function PowerBtn({
       disabled={disabled}
       activeOpacity={0.7}
     >
-      <Ionicons name={icon as any} size={20} color={color} />
+      <Ionicons name={icon} size={20} color={color} />
       <Text style={[styles.powerLabel, { color }]}>{label}</Text>
     </TouchableOpacity>
   );

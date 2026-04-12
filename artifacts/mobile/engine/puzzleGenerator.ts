@@ -29,16 +29,11 @@ export interface Puzzle {
   totalDots: number;
 }
 
-function getDifficultyParams(difficulty: Difficulty) {
-  switch (difficulty) {
-    case "easy":
-      return { gridSize: 7, numRegions: 8, targetDots: 64 };
-    case "medium":
-      return { gridSize: 10, numRegions: 16, targetDots: 128 };
-    case "hard":
-      return { gridSize: 14, numRegions: 28, targetDots: 256 };
-  }
-}
+const DIFFICULTY_PARAMS: Record<Difficulty, { gridSize: number; numRegions: number; targetDots: number }> = {
+  easy:   { gridSize: 9,  numRegions: 10, targetDots: 64  },
+  medium: { gridSize: 12, numRegions: 18, targetDots: 128 },
+  hard:   { gridSize: 16, numRegions: 32, targetDots: 256 },
+};
 
 type Cell = [number, number];
 
@@ -49,7 +44,7 @@ function growRegions(gridSize: number, numRegions: number, rng: SeededRandom): n
 
   const seeds: Cell[] = [];
   let attempts = 0;
-  while (seeds.length < numRegions && attempts < 1000) {
+  while (seeds.length < numRegions && attempts < 2000) {
     attempts++;
     const r = rng.nextInt(0, gridSize - 1);
     const c = rng.nextInt(0, gridSize - 1);
@@ -65,7 +60,6 @@ function growRegions(gridSize: number, numRegions: number, rng: SeededRandom): n
   while (frontier.length > 0) {
     frontier = rng.shuffle(frontier);
     const next: Array<[number, Cell]> = [];
-
     for (const [region, [r, c]] of frontier) {
       for (const [dr, dc] of dirs) {
         const nr = r + dr, nc = c + dc;
@@ -186,8 +180,149 @@ function computeAdjacency(grid: number[][], gridSize: number, numRegions: number
   return adj;
 }
 
+/**
+ * Add midpoint dots along shape edges until the total dot count reaches exactly `target`.
+ * Selects the longest available edge globally on each iteration so shapes
+ * receive extra dots in a visually balanced way.
+ */
+function subdivideEdgesToTarget(
+  shapes: PuzzleShape[],
+  dots: Dot[],
+  dotMap: Map<string, number>,
+  target: number,
+): void {
+  let safetyLimit = target * 3; // prevent infinite loops
+
+  while (dots.length < target && safetyLimit-- > 0) {
+    let bestSi = -1;
+    let bestDi = -1;
+    let bestLen = 0;
+
+    for (let si = 0; si < shapes.length; si++) {
+      const { dotIds } = shapes[si];
+      for (let di = 0; di < dotIds.length; di++) {
+        const a = dots[dotIds[di]];
+        const b = dots[dotIds[(di + 1) % dotIds.length]];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        if (len > bestLen) {
+          bestLen = len;
+          bestSi = si;
+          bestDi = di;
+        }
+      }
+    }
+
+    if (bestSi < 0 || bestLen < 0.01) break; // nothing more to subdivide
+
+    const shape = shapes[bestSi];
+    const a = dots[shape.dotIds[bestDi]];
+    const b = dots[shape.dotIds[(bestDi + 1) % shape.dotIds.length]];
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    const key = `${mx},${my}`;
+
+    let midId: number;
+    if (dotMap.has(key)) {
+      midId = dotMap.get(key)!;
+      // Already exists — still insert into this shape's dotIds if missing
+      if (shape.dotIds.includes(midId)) {
+        // Edge is already as short as it can go; skip
+        break;
+      }
+    } else {
+      midId = dots.length;
+      dotMap.set(key, midId);
+      dots.push({ id: midId, x: mx, y: my });
+    }
+
+    // Insert midId after bestDi in this shape's boundary sequence
+    shape.dotIds.splice(bestDi + 1, 0, midId);
+  }
+}
+
+/**
+ * Remove extra dots from shapes, preferring to merge collinear / very-short
+ * edges until the total unique dot count equals the target. This handles the
+ * case where the grid naturally generates more dots than the target.
+ *
+ * Note: shared dots (used by multiple shapes) cannot be removed.
+ */
+function pruneDotsToTarget(
+  shapes: PuzzleShape[],
+  dots: Dot[],
+  dotMap: Map<string, number>,
+  target: number,
+): void {
+  let safetyLimit = (dots.length - target) * 4;
+
+  // Build per-dot usage count so we never remove shared dots
+  const usageCount = new Map<number, number>();
+  for (const shape of shapes) {
+    for (const id of shape.dotIds) {
+      usageCount.set(id, (usageCount.get(id) ?? 0) + 1);
+    }
+  }
+
+  while (dots.length > target && safetyLimit-- > 0) {
+    let bestSi = -1;
+    let bestDi = -1;
+    let bestLen = Infinity;
+
+    for (let si = 0; si < shapes.length; si++) {
+      const { dotIds } = shapes[si];
+      if (dotIds.length <= 3) continue; // can't shrink a triangle
+      for (let di = 0; di < dotIds.length; di++) {
+        const id = dotIds[di];
+        if ((usageCount.get(id) ?? 0) > 1) continue; // shared — skip
+        const a = dots[dotIds[(di - 1 + dotIds.length) % dotIds.length]];
+        const b = dots[id];
+        const c = dots[dotIds[(di + 1) % dotIds.length]];
+        const cross =
+          (b.x - a.x) * (c.y - a.y) -
+          (b.y - a.y) * (c.x - a.x);
+        // Prefer near-collinear points (small cross product) with shortest total edge
+        const totalLen = Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c.x - b.x, c.y - b.y);
+        const score = Math.abs(cross) * 10 + totalLen;
+        if (score < bestLen) {
+          bestLen = score;
+          bestSi = si;
+          bestDi = di;
+        }
+      }
+    }
+
+    if (bestSi < 0) break;
+
+    const shape = shapes[bestSi];
+    const removedId = shape.dotIds[bestDi];
+    shape.dotIds.splice(bestDi, 1);
+    usageCount.set(removedId, (usageCount.get(removedId) ?? 1) - 1);
+
+    // If the dot is now unused, remove it from the global list
+    if ((usageCount.get(removedId) ?? 0) === 0) {
+      // Mark as deleted; compact at the end
+      dotMap.forEach((v, k) => { if (v === removedId) dotMap.delete(k); });
+      dots[removedId] = { id: -1, x: 0, y: 0 }; // tombstone
+    }
+  }
+
+  // Compact: rebuild dots array and remap IDs
+  const remap = new Map<number, number>();
+  const newDots: Dot[] = [];
+  for (const d of dots) {
+    if (d.id >= 0) {
+      remap.set(d.id, newDots.length);
+      newDots.push({ id: newDots.length, x: d.x, y: d.y });
+    }
+  }
+  dots.splice(0, dots.length, ...newDots);
+  for (const shape of shapes) {
+    shape.dotIds = shape.dotIds.map((id) => remap.get(id) ?? id);
+  }
+}
+
 export function generatePuzzle(difficulty: Difficulty, seed: number, theme: ThemeName): Puzzle {
-  const { gridSize, numRegions } = getDifficultyParams(difficulty);
+  const { gridSize, numRegions, targetDots } = DIFFICULTY_PARAMS[difficulty];
   const rng = new SeededRandom(seed);
 
   const grid = growRegions(gridSize, numRegions, rng);
@@ -199,7 +334,6 @@ export function generatePuzzle(difficulty: Difficulty, seed: number, theme: Them
 
   const dotMap = new Map<string, number>();
   const dots: Dot[] = [];
-
   const shapes: PuzzleShape[] = [];
 
   for (let i = 0; i < numRegions; i++) {
@@ -232,6 +366,13 @@ export function generatePuzzle(difficulty: Difficulty, seed: number, theme: Them
     });
   }
 
+  // Adjust dot count to hit the exact target
+  if (dots.length < targetDots) {
+    subdivideEdgesToTarget(shapes, dots, dotMap, targetDots);
+  } else if (dots.length > targetDots) {
+    pruneDotsToTarget(shapes, dots, dotMap, targetDots);
+  }
+
   return {
     seed,
     difficulty,
@@ -261,7 +402,7 @@ export function getCanvasLayout(puzzle: Puzzle, canvasWidth: number, canvasHeigh
     cellSize,
     offsetX,
     offsetY,
-    dotRadius: Math.max(7, Math.min(14, cellSize * 0.35)),
+    dotRadius: Math.max(6, Math.min(14, cellSize * 0.35)),
     toScreen: (gx: number, gy: number) => ({
       x: offsetX + gx * cellSize,
       y: offsetY + gy * cellSize,

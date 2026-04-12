@@ -11,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { GameMode } from "@/context/GameContext";
 
@@ -18,7 +19,7 @@ const MODES: Array<{
   mode: GameMode;
   label: string;
   desc: string;
-  icon: string;
+  icon: IoniconName;
   color: string;
   badge?: string;
 }> = [
@@ -127,7 +128,7 @@ export default function ModesScreen() {
             <View
               style={[styles.iconBox, { backgroundColor: m.color + "22" }]}
             >
-              <Ionicons name={m.icon as any} size={28} color={m.color} />
+              <Ionicons name={m.icon} size={28} color={m.color} />
             </View>
             <View style={styles.cardText}>
               <Text style={[styles.cardTitle, { color: colors.foreground }]}>

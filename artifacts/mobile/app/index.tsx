@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 
@@ -181,7 +182,7 @@ function MenuButton({
   flex,
 }: {
   label: string;
-  icon: string;
+  icon: IoniconName;
   bgColor: string;
   textColor: string;
   onPress: () => void;
@@ -221,7 +222,7 @@ function MenuButton({
         testID={testID}
       >
         <Ionicons
-          name={icon as any}
+          name={icon}
           size={22}
           color={textColor}
           style={{ marginRight: 10 }}

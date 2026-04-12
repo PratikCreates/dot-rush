@@ -14,6 +14,7 @@ import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon, Circle, Line, Text as SvgText } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 
 const { width } = Dimensions.get("window");
@@ -24,7 +25,7 @@ interface Step {
   title: string;
   subtitle: string;
   color: string;
-  icon: string;
+  icon: IoniconName;
   Demo: React.ComponentType<{ colors: any; anim: Animated.Value }>;
 }
 
@@ -392,7 +393,7 @@ export default function HowToPlayScreen() {
           {/* Header */}
           <View style={styles.stepHeader}>
             <View style={[styles.stepIconBox, { backgroundColor: current.color + "22" }]}>
-              <Ionicons name={current.icon as any} size={26} color={current.color} />
+              <Ionicons name={current.icon} size={26} color={current.color} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.stepNum, { color: current.color }]}>
@@ -490,7 +491,6 @@ const styles = StyleSheet.create({
   stepDot: {
     height: 8,
     borderRadius: 4,
-    transition: "width 0.2s",
   },
   content: { padding: 20, gap: 16 },
   stepCard: {

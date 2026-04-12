@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 import { THEMES, THEME_NAMES } from "@/engine/themes";
@@ -118,14 +119,16 @@ export default function ProfileScreen() {
           STATS
         </Text>
         <View style={styles.statsGrid}>
-          {[
-            { label: "PUZZLES", value: profile.totalPuzzles, icon: "grid", color: colors.accent },
-            { label: "SHAPES", value: profile.totalShapes, icon: "shapes", color: colors.primary },
-            { label: "WIN RATE", value: `${winRate}%`, icon: "trophy", color: "#FFD700" },
-            { label: "STREAK", value: profile.longestEndlessStreak, icon: "infinite", color: "#BF5FFF" },
-            { label: "DAILY STK", value: profile.dailyStreak, icon: "calendar", color: "#36D6FF" },
-            { label: "WINS", value: profile.wins, icon: "ribbon", color: colors.success },
-          ].map((s) => (
+          {(
+            [
+              { label: "PUZZLES", value: profile.totalPuzzles, icon: "grid", color: colors.accent },
+              { label: "SHAPES", value: profile.totalShapes, icon: "shapes", color: colors.primary },
+              { label: "WIN RATE", value: `${winRate}%`, icon: "trophy", color: "#FFD700" },
+              { label: "STREAK", value: profile.longestEndlessStreak, icon: "infinite", color: "#BF5FFF" },
+              { label: "DAILY STK", value: profile.dailyStreak, icon: "calendar", color: "#36D6FF" },
+              { label: "WINS", value: profile.wins, icon: "ribbon", color: colors.success },
+            ] satisfies Array<{ label: string; value: string | number; icon: IoniconName; color: string }>
+          ).map((s) => (
             <View
               key={s.label}
               style={[
@@ -133,7 +136,7 @@ export default function ProfileScreen() {
                 { backgroundColor: colors.card, borderColor: s.color + "44" },
               ]}
             >
-              <Ionicons name={s.icon as any} size={20} color={s.color} />
+              <Ionicons name={s.icon} size={20} color={s.color} />
               <Text style={[styles.statValue, { color: s.color }]}>
                 {s.value}
               </Text>
