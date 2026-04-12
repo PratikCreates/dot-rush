@@ -17,7 +17,7 @@ import {
   ScoreEvent,
 } from "@/engine/scoring";
 
-export type GameMode = "timed" | "challenge" | "daily" | "endless" | "accuracy";
+export type GameMode = "timed" | "challenge" | "daily" | "endless" | "accuracy" | "speedrun";
 
 export interface ConnectionState {
   shapeId: number | null;

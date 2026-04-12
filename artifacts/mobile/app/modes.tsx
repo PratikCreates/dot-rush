@@ -62,6 +62,14 @@ const MODES: Array<{
     icon: "checkmark-circle",
     color: "#39FF14",
   },
+  {
+    mode: "speedrun",
+    label: "SPEED RUN",
+    desc: "Fastest completion wins. Personal best tracked.",
+    icon: "flash",
+    color: "#FFD700",
+    badge: "FASTEST",
+  },
 ];
 
 export default function ModesScreen() {

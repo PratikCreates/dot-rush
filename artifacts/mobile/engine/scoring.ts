@@ -83,7 +83,7 @@ export function calculateStars(
 }
 
 export function getTimeLimitSec(difficulty: string, mode: string): number {
-  if (mode === "timed" || mode === "endless" || mode === "accuracy") return 0;
+  if (mode === "timed" || mode === "endless" || mode === "accuracy" || mode === "speedrun") return 0;
   const limits: Record<string, Record<string, number>> = {
     easy: { challenge: 180, daily: 300 },
     medium: { challenge: 360, daily: 480 },

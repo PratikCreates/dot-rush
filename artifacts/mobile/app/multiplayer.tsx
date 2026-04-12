@@ -118,21 +118,24 @@ export default function MultiplayerScreen() {
       pulse();
       if (c <= 0) {
         clearInterval(countdownRef.current!);
-        // Game would start here - simulate by going back to menu for demo
+        // Navigate to the game screen with the selected mode and a shared seed
+        // The seed is derived from the room code so all players get the same puzzle
+        const seedBase = roomCode
+          .split("")
+          .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+        const gameSeed = (seedBase * 31337 + Date.now()) % 999983;
         setTimeout(() => {
-          Alert.alert(
-            "Game Starting!",
-            `${selectedMode.toUpperCase()} mode starting...\nMode: ${MP_MODES.find((m) => m.id === selectedMode)?.label}\nPlayers: ${players.length}\n\nMultiplayer networking requires same WiFi network.`,
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  setLobby("host");
-                },
-              },
-            ]
-          );
-        }, 200);
+          router.push({
+            pathname: "/game",
+            params: {
+              mode: selectedMode,
+              difficulty: "medium",
+              seed: String(gameSeed),
+              multiplayer: "true",
+              players: String(players.length),
+            },
+          });
+        }, 150);
       }
     }, 1000);
   };
@@ -149,6 +152,20 @@ export default function MultiplayerScreen() {
     switch (ws.event.kind) {
       case "game_starting":
         startCountdown();
+        break;
+      case "game_started":
+        // Server sent a synchronized seed — navigate all clients to the same puzzle
+        clearInterval(countdownRef.current!);
+        router.push({
+          pathname: "/game",
+          params: {
+            mode: ws.event.mode,
+            difficulty: "medium",
+            seed: String(ws.event.seed),
+            multiplayer: "true",
+            players: String(players.length),
+          },
+        });
         break;
       case "kicked":
         Alert.alert("Kicked", "You were kicked from the room.");
@@ -488,11 +505,12 @@ export default function MultiplayerScreen() {
             <View style={styles.codeRow}>
               <TextInput
                 style={[styles.codeInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
-                placeholder="4-digit code"
+                placeholder="Room code (e.g. AB3K)"
                 placeholderTextColor={colors.mutedForeground}
                 value={joinCode}
-                onChangeText={(t) => setJoinCode(t.replace(/\D/g, "").slice(0, 4))}
-                keyboardType="number-pad"
+                onChangeText={(t) => setJoinCode(t.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 4))}
+                keyboardType="default"
+                autoCapitalize="characters"
                 maxLength={4}
               />
               <TouchableOpacity
