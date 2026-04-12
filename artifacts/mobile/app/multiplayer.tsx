@@ -505,12 +505,11 @@ export default function MultiplayerScreen() {
             <View style={styles.codeRow}>
               <TextInput
                 style={[styles.codeInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.surface }]}
-                placeholder="Room code (e.g. AB3K)"
+                placeholder="4-digit code"
                 placeholderTextColor={colors.mutedForeground}
                 value={joinCode}
-                onChangeText={(t) => setJoinCode(t.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 4))}
-                keyboardType="default"
-                autoCapitalize="characters"
+                onChangeText={(t) => setJoinCode(t.replace(/[^0-9]/g, "").slice(0, 4))}
+                keyboardType="number-pad"
                 maxLength={4}
               />
               <TouchableOpacity

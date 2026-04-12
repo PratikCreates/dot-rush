@@ -69,9 +69,7 @@ const socketIdentity = new Map<WebSocket, { roomCode: string; playerId: string }
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function generateRoomCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  const code = String(Math.floor(1000 + Math.random() * 9000));
   return rooms.has(code) ? generateRoomCode() : code;
 }
 

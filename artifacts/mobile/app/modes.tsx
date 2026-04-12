@@ -128,7 +128,9 @@ export default function ModesScreen() {
               },
             ]}
             onPress={() =>
-              router.push({ pathname: "/difficulty", params: { mode: m.mode } })
+              m.mode === "speedrun"
+                ? router.push("/besttime")
+                : router.push({ pathname: "/difficulty", params: { mode: m.mode } })
             }
             activeOpacity={0.8}
             testID={`mode-${m.mode}`}
