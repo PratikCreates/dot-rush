@@ -59,11 +59,6 @@ export interface RoomState {
 const rooms = new Map<string, Room>();
 let _idCounter = 0;
 
-/**
- * Authoritative server-side identity registry.
- * Populated on CREATE_ROOM / JOIN_ROOM; cleared on disconnect or LEAVE_ROOM.
- * Prevents clients from spoofing playerId or host privileges.
- */
 const socketIdentity = new Map<WebSocket, { roomCode: string; playerId: string }>();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -113,7 +108,6 @@ function removeStaleRooms(): void {
   }
 }
 
-/** Resolve the calling socket's room and player. Returns undefined if not registered. */
 function resolveIdentity(ws: WebSocket): { room: Room; player: RoomPlayer } | undefined {
   const identity = socketIdentity.get(ws);
   if (!identity) return undefined;
@@ -124,7 +118,6 @@ function resolveIdentity(ws: WebSocket): { room: Room; player: RoomPlayer } | un
   return { room, player };
 }
 
-/** Remove a player from their room, transfer host if needed, clean up stale rooms. */
 function removePlayer(ws: WebSocket): void {
   const identity = socketIdentity.get(ws);
   socketIdentity.delete(ws);

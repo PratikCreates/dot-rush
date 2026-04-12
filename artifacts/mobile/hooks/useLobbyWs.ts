@@ -1,15 +1,3 @@
-/**
- * useLobbyWs – WebSocket hook for Dot Rush multiplayer lobby.
- *
- * Connects to the API server WebSocket endpoint and manages
- * real-time room state (create, join, kick, ban, start game, etc.).
- *
- * Security: The server binds player identity to the WebSocket connection at
- * CREATE_ROOM / JOIN_ROOM time. All subsequent privileged messages are
- * verified server-side using that socket-bound identity — the client does NOT
- * supply playerId or requesterId on any subsequent message.
- */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // ── Message types (must mirror src/ws/roomManager.ts on the API server) ──────
@@ -162,10 +150,6 @@ export function useLobbyWs(): LobbyWsState {
       ws.send(JSON.stringify(msg));
     }
   }, []);
-
-  // ── Lobby actions ───────────────────────────────────────────────────────────
-  // The server derives the caller's identity from the socket; clients do NOT
-  // include playerId / requesterId in any message after CREATE_ROOM / JOIN_ROOM.
 
   const createRoom = useCallback(
     (playerName: string, mode: string) => {

@@ -13,6 +13,7 @@ import {
   SCORE_FULL_SHAPE_CORRECT,
   SCORE_REGION_CORRECT,
   PENALTY_WRONG_TAP,
+  PENALTY_WRONG_COLOR,
   MISTAKE_LIMIT,
   ScoreEvent,
 } from "@/engine/scoring";
@@ -219,10 +220,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       } else {
         setState((prev) => ({
           ...prev,
-          score: Math.max(0, prev.score - 1),
+          score: Math.max(0, prev.score + PENALTY_WRONG_COLOR),
           wrongTaps: prev.wrongTaps + 1,
         }));
-        return { type: "wrong_color", points: -1, label: "Wrong color!" };
+        return { type: "wrong_color", points: PENALTY_WRONG_COLOR, label: "Wrong color!" };
       }
     },
     []
