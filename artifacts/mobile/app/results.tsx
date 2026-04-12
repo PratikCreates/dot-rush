@@ -12,7 +12,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useColors } from "@/hooks/useColors";
+import { useColors, type AppColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGame } from "@/context/GameContext";
 import StarsRow from "@/components/StarsRow";
@@ -311,7 +311,7 @@ function StatItem({
   label: string;
   value: string;
   color: string;
-  colors: any;
+  colors: AppColors;
 }) {
   return (
     <View style={styles.statItem}>

@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon, Circle, Line, Text as SvgText } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import type { IoniconName } from "@/types/icons";
-import { useColors } from "@/hooks/useColors";
+import { useColors, type AppColors } from "@/hooks/useColors";
 
 const { width } = Dimensions.get("window");
 const DEMO_SIZE = Math.min(width - 48, 320);
@@ -26,11 +26,11 @@ interface Step {
   subtitle: string;
   color: string;
   icon: IoniconName;
-  Demo: React.ComponentType<{ colors: any; anim: Animated.Value }>;
+  Demo: React.ComponentType<{ colors: AppColors; anim: Animated.Value }>;
 }
 
 // ── Demo 1: Tap a shape to select it ──────────────────────────────────────
-function SelectShapeDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
+function SelectShapeDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value }) {
   const scale = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.08, 1] });
   const glowOp = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.2, 0.9, 0.2] });
   const pts = "60,20 140,20 160,80 100,110 40,80";
@@ -68,7 +68,7 @@ function SelectShapeDemo({ colors, anim }: { colors: any; anim: Animated.Value }
 }
 
 // ── Demo 2: Connect numbered dots in order ─────────────────────────────────
-function ConnectDotsDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
+function ConnectDotsDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value }) {
   const dotPositions = [
     { x: 50, y: 30, num: 1 },
     { x: 150, y: 30, num: 2 },
@@ -144,7 +144,7 @@ function ConnectDotsDemo({ colors, anim }: { colors: any; anim: Animated.Value }
 }
 
 // ── Demo 3: Color the completed shape ──────────────────────────────────────
-function ColorShapeDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
+function ColorShapeDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value }) {
   const COLORS = ["#FF3CAC", "#36D6FF", "#FFD700", "#39FF14", "#BF5FFF"];
   const [selected, setSelected] = useState(0);
   const [filled, setFilled] = useState(false);
@@ -195,7 +195,7 @@ function ColorShapeDemo({ colors, anim }: { colors: any; anim: Animated.Value })
 }
 
 // ── Demo 4: Complete all shapes ─────────────────────────────────────────────
-function CompleteDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
+function CompleteDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value }) {
   const starScale = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.8, 1.2, 0.8] });
   const shapes = [
     { pts: "20,20 60,10 80,50 50,70 10,55", color: "#FF3CAC" },
@@ -224,7 +224,7 @@ function CompleteDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
 }
 
 // ── Demo 5: Multiplayer scoring ─────────────────────────────────────────────
-function ScoringDemo({ colors, anim }: { colors: any; anim: Animated.Value }) {
+function ScoringDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value }) {
   const glow = anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.5, 1, 0.5] });
   const positions = [
     { pos: 1, pts: 10, color: "#FFD700", icon: "🥇" },

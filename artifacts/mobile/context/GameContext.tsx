@@ -120,7 +120,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const tapDot = useCallback((dotId: number): ScoreEvent | null => {
     const current = stateRef.current;
     const { connection, shapes, activeMode } = current;
-    if (!connection.shapeId === null) return null;
+    if (connection.shapeId === null) return null;
 
     const shapeId = connection.shapeId;
     if (shapeId === null) return null;

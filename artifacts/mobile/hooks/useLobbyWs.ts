@@ -3,6 +3,11 @@
  *
  * Connects to the API server WebSocket endpoint and manages
  * real-time room state (create, join, kick, ban, start game, etc.).
+ *
+ * Security: The server binds player identity to the WebSocket connection at
+ * CREATE_ROOM / JOIN_ROOM time. All subsequent privileged messages are
+ * verified server-side using that socket-bound identity — the client does NOT
+ * supply playerId or requesterId on any subsequent message.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -77,7 +82,6 @@ export function useLobbyWs(): LobbyWsState {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [event, setEvent] = useState<LobbyEvent | null>(null);
 
-  // Establish connection once on mount
   useEffect(() => {
     let ws: WebSocket;
     let didCleanup = false;
@@ -142,7 +146,7 @@ export function useLobbyWs(): LobbyWsState {
         }
       };
     } catch {
-      // WebSocket not available in this environment (e.g. SSR)
+      // WebSocket not available (e.g. SSR / test environment)
     }
 
     return () => {
@@ -158,6 +162,10 @@ export function useLobbyWs(): LobbyWsState {
       ws.send(JSON.stringify(msg));
     }
   }, []);
+
+  // ── Lobby actions ───────────────────────────────────────────────────────────
+  // The server derives the caller's identity from the socket; clients do NOT
+  // include playerId / requesterId in any message after CREATE_ROOM / JOIN_ROOM.
 
   const createRoom = useCallback(
     (playerName: string, mode: string) => {
@@ -175,45 +183,39 @@ export function useLobbyWs(): LobbyWsState {
 
   const kickPlayer = useCallback(
     (targetId: string) => {
-      if (!roomCode || !playerId) return;
-      send({ type: "KICK_PLAYER", roomCode, targetId, requesterId: playerId });
+      send({ type: "KICK_PLAYER", targetId });
     },
-    [send, roomCode, playerId],
+    [send],
   );
 
   const banPlayer = useCallback(
     (targetId: string) => {
-      if (!roomCode || !playerId) return;
-      send({ type: "BAN_PLAYER", roomCode, targetId, requesterId: playerId });
+      send({ type: "BAN_PLAYER", targetId });
     },
-    [send, roomCode, playerId],
+    [send],
   );
 
   const changeMode = useCallback(
     (mode: string) => {
-      if (!roomCode || !playerId) return;
-      send({ type: "CHANGE_MODE", roomCode, mode, requesterId: playerId });
+      send({ type: "CHANGE_MODE", mode });
     },
-    [send, roomCode, playerId],
+    [send],
   );
 
   const startGame = useCallback(() => {
-    if (!roomCode || !playerId) return;
-    send({ type: "START_GAME", roomCode, requesterId: playerId });
-  }, [send, roomCode, playerId]);
+    send({ type: "START_GAME" });
+  }, [send]);
 
   const leaveRoom = useCallback(() => {
-    if (!roomCode || !playerId) return;
-    send({ type: "LEAVE_ROOM", roomCode, playerId });
+    send({ type: "LEAVE_ROOM" });
     setRoomCode(null);
     setPlayerId(null);
     setRoomState(null);
-  }, [send, roomCode, playerId]);
+  }, [send]);
 
   const toggleReady = useCallback(() => {
-    if (!roomCode || !playerId) return;
-    send({ type: "READY_TOGGLE", roomCode, playerId });
-  }, [send, roomCode, playerId]);
+    send({ type: "READY_TOGGLE" });
+  }, [send]);
 
   return {
     connected,

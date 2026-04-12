@@ -6,12 +6,12 @@ import { IncomingMessage, Server } from "http";
 export type MsgIn =
   | { type: "CREATE_ROOM"; playerName: string; mode: string }
   | { type: "JOIN_ROOM"; roomCode: string; playerName: string }
-  | { type: "READY_TOGGLE"; roomCode: string; playerId: string }
-  | { type: "KICK_PLAYER"; roomCode: string; targetId: string; requesterId: string }
-  | { type: "BAN_PLAYER"; roomCode: string; targetId: string; requesterId: string }
-  | { type: "CHANGE_MODE"; roomCode: string; mode: string; requesterId: string }
-  | { type: "START_GAME"; roomCode: string; requesterId: string }
-  | { type: "LEAVE_ROOM"; roomCode: string; playerId: string };
+  | { type: "READY_TOGGLE" }
+  | { type: "KICK_PLAYER"; targetId: string }
+  | { type: "BAN_PLAYER"; targetId: string }
+  | { type: "CHANGE_MODE"; mode: string }
+  | { type: "START_GAME" }
+  | { type: "LEAVE_ROOM" };
 
 export type MsgOut =
   | { type: "ROOM_CREATED"; roomCode: string; playerId: string }
@@ -54,10 +54,19 @@ export interface RoomState {
   banned: BannedEntry[];
 }
 
-// ── In-memory room store ─────────────────────────────────────────────────────
+// ── In-memory stores ─────────────────────────────────────────────────────────
 
 const rooms = new Map<string, Room>();
 let _idCounter = 0;
+
+/**
+ * Authoritative server-side identity registry.
+ * Populated on CREATE_ROOM / JOIN_ROOM; cleared on disconnect or LEAVE_ROOM.
+ * Prevents clients from spoofing playerId or host privileges.
+ */
+const socketIdentity = new Map<WebSocket, { roomCode: string; playerId: string }>();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function generateRoomCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -106,6 +115,43 @@ function removeStaleRooms(): void {
   }
 }
 
+/** Resolve the calling socket's room and player. Returns undefined if not registered. */
+function resolveIdentity(ws: WebSocket): { room: Room; player: RoomPlayer } | undefined {
+  const identity = socketIdentity.get(ws);
+  if (!identity) return undefined;
+  const room = rooms.get(identity.roomCode);
+  if (!room) return undefined;
+  const player = room.players.get(identity.playerId);
+  if (!player) return undefined;
+  return { room, player };
+}
+
+/** Remove a player from their room, transfer host if needed, clean up stale rooms. */
+function removePlayer(ws: WebSocket): void {
+  const identity = socketIdentity.get(ws);
+  socketIdentity.delete(ws);
+  if (!identity) return;
+
+  const room = rooms.get(identity.roomCode);
+  if (!room) return;
+
+  room.players.delete(identity.playerId);
+
+  if (room.players.size === 0) {
+    rooms.delete(identity.roomCode);
+    return;
+  }
+
+  if (room.hostId === identity.playerId) {
+    const next = room.players.values().next().value;
+    if (next) {
+      next.isHost = true;
+      room.hostId = next.id;
+    }
+  }
+  broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
+}
+
 // ── Message handler ──────────────────────────────────────────────────────────
 
 function handleMessage(ws: WebSocket, raw: string): void {
@@ -132,77 +178,104 @@ function handleMessage(ws: WebSocket, raw: string): void {
         createdAt: Date.now(),
       };
       rooms.set(code, room);
+      // Bind this socket to its server-assigned identity — never trust client claims
+      socketIdentity.set(ws, { roomCode: code, playerId: id });
       sendTo(ws, { type: "ROOM_CREATED", roomCode: code, playerId: id });
       broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
       break;
     }
 
     case "JOIN_ROOM": {
+      if (socketIdentity.has(ws)) {
+        sendTo(ws, { type: "ERROR", message: "Already in a room" });
+        return;
+      }
       const room = rooms.get(msg.roomCode);
       if (!room) { sendTo(ws, { type: "ERROR", message: "Room not found" }); return; }
-      if (room.players.size >= 4) { sendTo(ws, { type: "ERROR", message: "Room is full" }); return; }
+      if (room.players.size >= 8) { sendTo(ws, { type: "ERROR", message: "Room is full" }); return; }
       if (room.banned.some((b) => b.name === msg.playerName)) {
         sendTo(ws, { type: "BANNED" }); return;
       }
       const id = nextId();
       const player: RoomPlayer = {
-        id, name: msg.playerName, isHost: false, team: room.players.size % 2 + 1,
+        id, name: msg.playerName, isHost: false,
+        team: (room.players.size % 2) + 1,
         ready: false, ws,
       };
       room.players.set(id, player);
+      // Bind this socket to its server-assigned identity
+      socketIdentity.set(ws, { roomCode: msg.roomCode, playerId: id });
       sendTo(ws, { type: "ROOM_JOINED", roomCode: msg.roomCode, playerId: id });
       broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
       break;
     }
 
     case "READY_TOGGLE": {
-      const room = rooms.get(msg.roomCode);
-      if (!room) return;
-      const player = room.players.get(msg.playerId);
-      if (!player) return;
-      player.ready = !player.ready;
-      broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
+      const ctx = resolveIdentity(ws);
+      if (!ctx) return;
+      ctx.player.ready = !ctx.player.ready;
+      broadcast(ctx.room, { type: "ROOM_STATE", state: getRoomState(ctx.room) });
       break;
     }
 
     case "KICK_PLAYER": {
-      const room = rooms.get(msg.roomCode);
-      if (!room || room.hostId !== msg.requesterId) return;
-      const target = room.players.get(msg.targetId);
+      const ctx = resolveIdentity(ws);
+      if (!ctx) return;
+      // Only the host may kick; identity is verified via socket, not client claim
+      if (ctx.room.hostId !== ctx.player.id) {
+        sendTo(ws, { type: "ERROR", message: "Only the host can kick players" });
+        return;
+      }
+      const target = ctx.room.players.get(msg.targetId);
       if (!target) return;
       sendTo(target.ws, { type: "KICKED" });
+      socketIdentity.delete(target.ws);
       target.ws.close();
-      room.players.delete(msg.targetId);
-      broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
+      ctx.room.players.delete(msg.targetId);
+      broadcast(ctx.room, { type: "ROOM_STATE", state: getRoomState(ctx.room) });
       break;
     }
 
     case "BAN_PLAYER": {
-      const room = rooms.get(msg.roomCode);
-      if (!room || room.hostId !== msg.requesterId) return;
-      const target = room.players.get(msg.targetId);
+      const ctx = resolveIdentity(ws);
+      if (!ctx) return;
+      if (ctx.room.hostId !== ctx.player.id) {
+        sendTo(ws, { type: "ERROR", message: "Only the host can ban players" });
+        return;
+      }
+      const target = ctx.room.players.get(msg.targetId);
       if (!target) return;
-      room.banned.push({ id: target.id, name: target.name });
+      ctx.room.banned.push({ id: target.id, name: target.name });
       sendTo(target.ws, { type: "BANNED" });
+      socketIdentity.delete(target.ws);
       target.ws.close();
-      room.players.delete(msg.targetId);
-      broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
+      ctx.room.players.delete(msg.targetId);
+      broadcast(ctx.room, { type: "ROOM_STATE", state: getRoomState(ctx.room) });
       break;
     }
 
     case "CHANGE_MODE": {
-      const room = rooms.get(msg.roomCode);
-      if (!room || room.hostId !== msg.requesterId) return;
-      room.mode = msg.mode;
-      broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
+      const ctx = resolveIdentity(ws);
+      if (!ctx) return;
+      if (ctx.room.hostId !== ctx.player.id) {
+        sendTo(ws, { type: "ERROR", message: "Only the host can change the mode" });
+        return;
+      }
+      ctx.room.mode = msg.mode;
+      broadcast(ctx.room, { type: "ROOM_STATE", state: getRoomState(ctx.room) });
       break;
     }
 
     case "START_GAME": {
-      const room = rooms.get(msg.roomCode);
-      if (!room || room.hostId !== msg.requesterId) return;
-      broadcast(room, { type: "GAME_STARTING", countdown: 10 });
-      const seed = Math.floor(Math.random() * 999983);
+      const ctx = resolveIdentity(ws);
+      if (!ctx) return;
+      if (ctx.room.hostId !== ctx.player.id) {
+        sendTo(ws, { type: "ERROR", message: "Only the host can start the game" });
+        return;
+      }
+      broadcast(ctx.room, { type: "GAME_STARTING", countdown: 10 });
+      const seed = Math.floor(Math.random() * 999_983);
+      const { room } = ctx;
       setTimeout(() => {
         broadcast(room, { type: "GAME_STARTED", seed, mode: room.mode });
       }, 10_000);
@@ -210,22 +283,7 @@ function handleMessage(ws: WebSocket, raw: string): void {
     }
 
     case "LEAVE_ROOM": {
-      const room = rooms.get(msg.roomCode);
-      if (!room) return;
-      room.players.delete(msg.playerId);
-      if (room.players.size === 0) {
-        rooms.delete(msg.roomCode);
-      } else if (room.hostId === msg.playerId) {
-        // Transfer host to the next player
-        const next = room.players.values().next().value;
-        if (next) {
-          next.isHost = true;
-          room.hostId = next.id;
-        }
-        broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
-      } else {
-        broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
-      }
+      removePlayer(ws);
       break;
     }
 
@@ -245,27 +303,9 @@ export function attachWebSocketServer(httpServer: Server): void {
     });
 
     ws.on("close", () => {
-      // Clean up: remove disconnected players from any room
-      for (const [code, room] of rooms) {
-        for (const [pid, player] of room.players) {
-          if (player.ws === ws) {
-            room.players.delete(pid);
-            if (room.players.size === 0) {
-              rooms.delete(code);
-            } else {
-              if (room.hostId === pid) {
-                const next = room.players.values().next().value;
-                if (next) { next.isHost = true; room.hostId = next.id; }
-              }
-              broadcast(room, { type: "ROOM_STATE", state: getRoomState(room) });
-            }
-            break;
-          }
-        }
-      }
+      removePlayer(ws);
     });
   });
 
-  // Periodically remove empty stale rooms
   setInterval(removeStaleRooms, 60_000);
 }
