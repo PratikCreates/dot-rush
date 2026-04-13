@@ -9,9 +9,7 @@
         "buildType": "apk"
       },
       "node": "22.16.0",
-      "pnpm": {
-        "version": "10.26.1"
-      },
+      "pnpm": "10.26.1",
       "env": {
         "NPM_CONFIG_FROZEN_LOCKFILE": "false"
       }
@@ -21,9 +19,7 @@
         "buildType": "app-bundle"
       },
       "node": "22.16.0",
-      "pnpm": {
-        "version": "10.26.1"
-      },
+      "pnpm": "10.26.1",
       "env": {
         "NPM_CONFIG_FROZEN_LOCKFILE": "false"
       }
