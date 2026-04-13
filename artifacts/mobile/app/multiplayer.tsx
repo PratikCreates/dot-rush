@@ -175,6 +175,12 @@ export default function MultiplayerScreen() {
         Alert.alert("Banned", "You have been banned from this room.");
         setLobby("menu");
         break;
+      case "reconnecting":
+        Alert.alert("Connection Lost", "Attempting to reconnect...");
+        break;
+      case "reconnected":
+        Alert.alert("Reconnected", "Connection restored!");
+        break;
       case "error":
         Alert.alert("Error", ws.event.message);
         break;
@@ -422,9 +428,15 @@ export default function MultiplayerScreen() {
             <View
               style={[styles.infoBanner, { backgroundColor: colors.accent + "22", borderColor: colors.accent + "44" }]}
             >
-              <Ionicons name="wifi" size={18} color={colors.accent} />
-              <Text style={[styles.infoText, { color: colors.accent }]}>
-                Both devices must be on the same WiFi network
+              <Ionicons 
+                name={ws.connected ? "wifi" : "wifi-outline"} 
+                size={18} 
+                color={ws.connected ? colors.success : colors.destructive} 
+              />
+              <Text style={[styles.infoText, { color: ws.connected ? colors.accent : colors.destructive }]}>
+                {ws.connected 
+                  ? "Connected · Both devices must be on the same WiFi network"
+                  : "Disconnected · Check your connection"}
               </Text>
             </View>
 

@@ -38,7 +38,9 @@ export type LobbyEvent =
   | { kind: "banned" }
   | { kind: "game_starting"; countdown: number }
   | { kind: "game_started"; seed: number; mode: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "reconnecting" }
+  | { kind: "reconnected" };
 
 export interface LobbyWsState {
   connected: boolean;
@@ -69,80 +71,110 @@ export function useLobbyWs(): LobbyWsState {
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [event, setEvent] = useState<LobbyEvent | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
+  const didCleanupRef = useRef(false);
 
-  useEffect(() => {
-    let ws: WebSocket;
-    let didCleanup = false;
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (didCleanupRef.current) return;
 
     try {
-      ws = new WebSocket(WS_URL);
+      const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        if (!didCleanup) setConnected(true);
+        if (didCleanupRef.current) return;
+        setConnected(true);
+        reconnectAttemptsRef.current = 0;
+        if (reconnectAttemptsRef.current > 0) {
+          setEvent({ kind: "reconnected" });
+        }
+      };
+
+      ws.onmessage = (e) => {
+        if (didCleanupRef.current) return;
+        try {
+          const msg = JSON.parse(e.data) as MsgOut;
+          switch (msg.type) {
+            case "ROOM_CREATED":
+              setRoomCode(msg.roomCode);
+              setPlayerId(msg.playerId);
+              break;
+            case "ROOM_JOINED":
+              setRoomCode(msg.roomCode);
+              setPlayerId(msg.playerId);
+              break;
+            case "ROOM_STATE":
+              setRoomState(msg.state);
+              break;
+            case "GAME_STARTING":
+              setEvent({ kind: "game_starting", countdown: msg.countdown });
+              break;
+            case "GAME_STARTED":
+              setEvent({ kind: "game_started", seed: msg.seed, mode: msg.mode });
+              break;
+            case "KICKED":
+              setEvent({ kind: "kicked" });
+              setRoomCode(null);
+              setPlayerId(null);
+              setRoomState(null);
+              break;
+            case "BANNED":
+              setEvent({ kind: "banned" });
+              setRoomCode(null);
+              setPlayerId(null);
+              setRoomState(null);
+              break;
+            case "ERROR":
+              setEvent({ kind: "error", message: msg.message });
+              break;
+          }
+        } catch (err) {
+          console.error("Failed to parse WebSocket message:", err);
+        }
+      };
+
+      ws.onerror = (err) => {
+        if (didCleanupRef.current) return;
+        console.error("WebSocket error:", err);
       };
 
       ws.onclose = () => {
-        if (!didCleanup) setConnected(false);
-      };
-
-      ws.onerror = () => {
-        if (!didCleanup) setConnected(false);
-      };
-
-      ws.onmessage = (ev) => {
-        if (didCleanup) return;
-        let msg: MsgOut;
-        try {
-          msg = JSON.parse(ev.data as string) as MsgOut;
-        } catch {
-          return;
-        }
-        switch (msg.type) {
-          case "ROOM_CREATED":
-            setRoomCode(msg.roomCode);
-            setPlayerId(msg.playerId);
-            break;
-          case "ROOM_JOINED":
-            setRoomCode(msg.roomCode);
-            setPlayerId(msg.playerId);
-            break;
-          case "ROOM_STATE":
-            setRoomState(msg.state);
-            break;
-          case "GAME_STARTING":
-            setEvent({ kind: "game_starting", countdown: msg.countdown });
-            break;
-          case "GAME_STARTED":
-            setEvent({ kind: "game_started", seed: msg.seed, mode: msg.mode });
-            break;
-          case "KICKED":
-            setEvent({ kind: "kicked" });
-            setRoomCode(null);
-            setPlayerId(null);
-            setRoomState(null);
-            break;
-          case "BANNED":
-            setEvent({ kind: "banned" });
-            setRoomCode(null);
-            setPlayerId(null);
-            setRoomState(null);
-            break;
-          case "ERROR":
-            setEvent({ kind: "error", message: msg.message });
-            break;
+        if (didCleanupRef.current) return;
+        setConnected(false);
+        
+        // Attempt reconnection if we were in a room
+        if (roomCode && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current++;
+          setEvent({ kind: "reconnecting" });
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000));
         }
       };
-    } catch {
-      // WebSocket not available (e.g. SSR / test environment)
+    } catch (err) {
+      console.error("Failed to create WebSocket:", err);
+      setConnected(false);
     }
+  }, [roomCode]);
 
+  useEffect(() => {
+    didCleanupRef.current = false;
+    connect();
+    
     return () => {
-      didCleanup = true;
-      wsRef.current?.close();
-      wsRef.current = null;
+      didCleanupRef.current = true;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
     };
-  }, []);
+  }, [connect]);
 
   const send = useCallback((msg: object) => {
     const ws = wsRef.current;
