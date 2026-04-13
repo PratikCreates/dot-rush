@@ -7,11 +7,25 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "node": "22.16.0",
+      "pnpm": {
+        "version": "10.26.1"
+      },
+      "env": {
+        "NPM_CONFIG_FROZEN_LOCKFILE": "false"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "node": "22.16.0",
+      "pnpm": {
+        "version": "10.26.1"
+      },
+      "env": {
+        "NPM_CONFIG_FROZEN_LOCKFILE": "false"
       }
     }
   }
