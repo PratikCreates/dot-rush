@@ -17,6 +17,7 @@
       "supportsTablet": false
     },
     "android": {
+      "package": "com.pratik.dotrush",
       "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
