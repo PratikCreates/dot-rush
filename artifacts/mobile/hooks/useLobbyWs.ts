@@ -58,11 +58,21 @@ export interface LobbyWsState {
   toggleReady: () => void;
 }
 
-const WS_URL =
-  process.env["EXPO_PUBLIC_WS_URL"] ??
-  (typeof window !== "undefined" && window.location
-    ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`
-    : "ws://localhost:8080/ws");
+const WS_URL = (() => {
+  // Check for Expo environment variable
+  if (typeof global !== "undefined" && (global as any).process?.env?.EXPO_PUBLIC_WS_URL) {
+    return (global as any).process.env.EXPO_PUBLIC_WS_URL;
+  }
+  
+  // Auto-detect from window location (web)
+  if (typeof window !== "undefined" && window.location) {
+    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${protocol}://${window.location.host}/ws`;
+  }
+  
+  // Default fallback
+  return "ws://localhost:8080/ws";
+})();
 
 export function useLobbyWs(): LobbyWsState {
   const wsRef = useRef<WebSocket | null>(null);
