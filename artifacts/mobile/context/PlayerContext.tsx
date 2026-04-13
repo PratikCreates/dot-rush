@@ -62,6 +62,7 @@ interface PlayerContextValue {
   recordWin: () => void;
   recordLoss: () => void;
   checkDailyStreak: () => void;
+  hasDailyBeenPlayed: () => boolean;
   unlockTheme: (theme: string) => void;
   isLoading: boolean;
 }
@@ -172,6 +173,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     persist({ ...profile, dailyStreak: newStreak, lastDailyDate: today });
   }, [profile, persist]);
 
+  const hasDailyBeenPlayed = useCallback(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return profile.lastDailyDate === today;
+  }, [profile.lastDailyDate]);
+
   const unlockTheme = useCallback(
     (theme: string) => {
       if (!profile.unlockedThemes.includes(theme)) {
@@ -194,6 +200,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         recordWin,
         recordLoss,
         checkDailyStreak,
+        hasDailyBeenPlayed,
         unlockTheme,
         isLoading,
       }}

@@ -35,6 +35,7 @@ export interface GameState {
   elapsedMs: number;
   isComplete: boolean;
   isFailed: boolean;
+  isPaused: boolean;
   connection: ConnectionState;
   selectedShapeId: number | null;
   coloringShapeId: number | null;
@@ -43,6 +44,7 @@ export interface GameState {
   activeTheme: ThemeName;
   activeSeed: number;
   endlessStreak: number;
+  endlessLevel: number;
 }
 
 interface GameContextValue {
@@ -61,6 +63,9 @@ interface GameContextValue {
   useHint: () => number | null;
   useColorReveal: () => string | null;
   resetGame: () => void;
+  pauseGame: () => void;
+  resumeGame: () => void;
+  nextEndlessLevel: () => void;
 }
 
 const DEFAULT_STATE: GameState = {
@@ -72,6 +77,7 @@ const DEFAULT_STATE: GameState = {
   elapsedMs: 0,
   isComplete: false,
   isFailed: false,
+  isPaused: false,
   connection: { shapeId: null, connectedDotCount: 0, mistakes: 0 },
   selectedShapeId: null,
   coloringShapeId: null,
@@ -80,6 +86,7 @@ const DEFAULT_STATE: GameState = {
   activeTheme: "animals",
   activeSeed: 0,
   endlessStreak: 0,
+  endlessLevel: 1,
 };
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -256,6 +263,37 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setState(DEFAULT_STATE);
   }, []);
 
+  const pauseGame = useCallback(() => {
+    setState((prev) => ({ ...prev, isPaused: true }));
+  }, []);
+
+  const resumeGame = useCallback(() => {
+    setState((prev) => ({ ...prev, isPaused: false }));
+  }, []);
+
+  const nextEndlessLevel = useCallback(() => {
+    const current = stateRef.current;
+    const newLevel = current.endlessLevel + 1;
+    const newSeed = current.activeSeed + newLevel * 1000;
+    const puzzle = generatePuzzle(current.activeDifficulty, newSeed, current.activeTheme);
+    
+    setState((prev) => ({
+      ...prev,
+      puzzle,
+      shapes: puzzle.shapes.map((s) => ({ ...s })),
+      activeSeed: newSeed,
+      endlessLevel: newLevel,
+      endlessStreak: prev.endlessStreak + 1,
+      isComplete: false,
+      isFailed: false,
+      connection: { shapeId: null, connectedDotCount: 0, mistakes: 0 },
+      selectedShapeId: null,
+      coloringShapeId: null,
+      wrongTaps: 0,
+      elapsedMs: 0,
+    }));
+  }, []);
+
   return (
     <GameContext.Provider
       value={{
@@ -269,6 +307,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         useHint,
         useColorReveal,
         resetGame,
+        pauseGame,
+        resumeGame,
+        nextEndlessLevel,
       }}
     >
       {children}

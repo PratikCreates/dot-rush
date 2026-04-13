@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Platform,
   Alert,
+  Modal,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
@@ -50,7 +51,7 @@ export default function GameScreen() {
     mode: string;
   }>();
 
-  const { state, startGame, tapDot, tapColorRegion, selectShapeToConnect, setElapsed, failGame, useHint, useColorReveal } = useGame();
+  const { state, startGame, tapDot, tapColorRegion, selectShapeToConnect, setElapsed, failGame, useHint, useColorReveal, pauseGame, resumeGame, nextEndlessLevel } = useGame();
   const { saveRecord, updateEndlessStreak } = usePlayer();
 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -58,6 +59,8 @@ export default function GameScreen() {
   const [colorRevealed, setColorRevealed] = useState(false);
   const [hintsLeft, setHintsLeft] = useState(3);
   const [colorHintsLeft, setColorHintsLeft] = useState(3);
+  const [showPauseMenu, setShowPauseMenu] = useState(false);
+  const [showEndlessComplete, setShowEndlessComplete] = useState(false);
 
   const startRef = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -80,7 +83,7 @@ export default function GameScreen() {
 
   // Timer
   useEffect(() => {
-    if (!state.puzzle || state.isComplete || state.isFailed) return;
+    if (!state.puzzle || state.isComplete || state.isFailed || state.isPaused) return;
     timerRef.current = setInterval(() => {
       const elapsed = Date.now() - startRef.current;
       setElapsed(elapsed);
@@ -93,13 +96,19 @@ export default function GameScreen() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [state.puzzle, state.isComplete, state.isFailed]);
+  }, [state.puzzle, state.isComplete, state.isFailed, state.isPaused]);
 
   // Navigate when done
   useEffect(() => {
     if ((state.isComplete || state.isFailed) && !resultSavedRef.current && state.puzzle) {
       resultSavedRef.current = true;
       clearInterval(timerRef.current!);
+
+      // For endless mode, show continue dialog instead of navigating
+      if (mode === "endless" && state.isComplete) {
+        setShowEndlessComplete(true);
+        return;
+      }
 
       const timeMs = state.elapsedMs;
       const shapesColored = state.shapes.filter((s) => s.isColored).length;
@@ -113,7 +122,7 @@ export default function GameScreen() {
         : 0;
 
       saveRecord(seed, difficulty, mode, finalScore, timeMs, stars, shapesColored);
-      if (mode === "endless") updateEndlessStreak(shapesColored);
+      if (mode === "endless") updateEndlessStreak(state.endlessStreak);
 
       setTimeout(() => {
         router.replace({
@@ -205,6 +214,49 @@ export default function GameScreen() {
     ]);
   }, []);
 
+  const handlePause = useCallback(() => {
+    pauseGame();
+    setShowPauseMenu(true);
+  }, [pauseGame]);
+
+  const handleResume = useCallback(() => {
+    setShowPauseMenu(false);
+    resumeGame();
+    startRef.current = Date.now() - state.elapsedMs;
+  }, [resumeGame, state.elapsedMs]);
+
+  const handleContinueEndless = useCallback(() => {
+    setShowEndlessComplete(false);
+    resultSavedRef.current = false;
+    setHintsLeft(3);
+    setColorHintsLeft(3);
+    nextEndlessLevel();
+    startRef.current = Date.now();
+  }, [nextEndlessLevel]);
+
+  const handleEndEndless = useCallback(() => {
+    const timeMs = state.elapsedMs;
+    const shapesColored = state.shapes.filter((s) => s.isColored).length;
+    const finalScore = state.score;
+    
+    saveRecord(seed, difficulty, mode, finalScore, timeMs, 3, shapesColored);
+    updateEndlessStreak(state.endlessStreak);
+
+    router.replace({
+      pathname: "/results",
+      params: {
+        score: String(finalScore),
+        stars: "3",
+        timeMs: String(timeMs),
+        seed: String(seed),
+        difficulty,
+        mode,
+        theme,
+        failed: "0",
+      },
+    });
+  }, [state, seed, difficulty, mode, theme, saveRecord, updateEndlessStreak]);
+
   if (!state.puzzle) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background }]}>
@@ -252,12 +304,15 @@ export default function GameScreen() {
         <View style={styles.modeLabel}>
           <Text style={[styles.modeLabelText, { color: colors.primary }]}>
             {mode.toUpperCase()}
+            {mode === "endless" && ` · LEVEL ${state.endlessLevel}`}
           </Text>
           <Text style={[styles.diffLabel, { color: colors.mutedForeground }]}>
             {difficulty.toUpperCase()} · {state.puzzle.totalDots} DOTS
           </Text>
         </View>
-        <ReferenceView puzzle={state.puzzle} size={44} />
+        <TouchableOpacity onPress={handlePause} style={styles.quitBtn}>
+          <Ionicons name="pause" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* HUD */}
@@ -370,6 +425,73 @@ export default function GameScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Pause Menu Modal */}
+      <Modal
+        visible={showPauseMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={handleResume}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.pauseMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="pause-circle" size={56} color={colors.primary} />
+            <Text style={[styles.pauseTitle, { color: colors.foreground }]}>PAUSED</Text>
+            
+            <TouchableOpacity
+              style={[styles.pauseBtn, { backgroundColor: colors.primary }]}
+              onPress={handleResume}
+            >
+              <Ionicons name="play" size={20} color={colors.primaryForeground} />
+              <Text style={[styles.pauseBtnText, { color: colors.primaryForeground }]}>RESUME</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.pauseBtn, { backgroundColor: colors.destructive }]}
+              onPress={() => {
+                setShowPauseMenu(false);
+                handleQuit();
+              }}
+            >
+              <Ionicons name="exit" size={20} color="#FFF" />
+              <Text style={[styles.pauseBtnText, { color: "#FFF" }]}>QUIT</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Endless Mode Complete Modal */}
+      <Modal
+        visible={showEndlessComplete}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.pauseMenu, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Ionicons name="checkmark-circle" size={56} color={colors.success} />
+            <Text style={[styles.pauseTitle, { color: colors.foreground }]}>LEVEL {state.endlessLevel} COMPLETE!</Text>
+            <Text style={[styles.endlessStats, { color: colors.mutedForeground }]}>
+              Streak: {state.endlessStreak} · Score: {state.score}
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.pauseBtn, { backgroundColor: colors.primary }]}
+              onPress={handleContinueEndless}
+            >
+              <Ionicons name="arrow-forward" size={20} color={colors.primaryForeground} />
+              <Text style={[styles.pauseBtnText, { color: colors.primaryForeground }]}>NEXT LEVEL</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.pauseBtn, { backgroundColor: colors.secondary, borderWidth: 1.5, borderColor: colors.border }]}
+              onPress={handleEndEndless}
+            >
+              <Ionicons name="trophy" size={20} color={colors.foreground} />
+              <Text style={[styles.pauseBtnText, { color: colors.foreground }]}>END RUN</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -485,5 +607,44 @@ const styles = StyleSheet.create({
   mistakesValue: {
     fontSize: 20,
     fontFamily: "Inter_700Bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pauseMenu: {
+    width: "80%",
+    maxWidth: 320,
+    padding: 32,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    alignItems: "center",
+    gap: 16,
+  },
+  pauseTitle: {
+    fontSize: 24,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  endlessStats: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    textAlign: "center",
+  },
+  pauseBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  pauseBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1.5,
   },
 });

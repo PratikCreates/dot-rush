@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Alert,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -14,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { GameMode } from "@/context/GameContext";
+import { usePlayer } from "@/context/PlayerContext";
+import { getDailyPuzzleSeed } from "@/engine/puzzleGenerator";
 
 const MODES: Array<{
   mode: GameMode;
@@ -75,9 +78,24 @@ const MODES: Array<{
 export default function ModesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { hasDailyBeenPlayed, profile } = usePlayer();
 
   const gradStart = colors.isDark ? "#0D0020" : "#FFF0FC";
   const gradEnd = colors.isDark ? "#0A001A" : "#E8C0FF";
+
+  const dailyAlreadyPlayed = hasDailyBeenPlayed();
+
+  const handleModeSelect = (mode: GameMode) => {
+    if (mode === "daily" && dailyAlreadyPlayed) {
+      Alert.alert(
+        "Daily Puzzle Complete",
+        "You've already completed today's daily puzzle! Come back tomorrow for a new challenge.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    router.push({ pathname: "/difficulty", params: { mode } });
+  };
 
   return (
     <LinearGradient
@@ -125,12 +143,13 @@ export default function ModesScreen() {
                 backgroundColor: colors.card,
                 borderColor: m.color + "44",
                 shadowColor: m.color,
+                opacity: m.mode === "daily" && dailyAlreadyPlayed ? 0.6 : 1,
               },
             ]}
             onPress={() =>
               m.mode === "speedrun"
                 ? router.push("/besttime")
-                : router.push({ pathname: "/difficulty", params: { mode: m.mode } })
+                : handleModeSelect(m.mode)
             }
             activeOpacity={0.8}
             testID={`mode-${m.mode}`}
@@ -141,14 +160,24 @@ export default function ModesScreen() {
               <Ionicons name={m.icon} size={28} color={m.color} />
             </View>
             <View style={styles.cardText}>
-              <Text style={[styles.cardTitle, { color: colors.foreground }]}>
-                {m.label}
-              </Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={[styles.cardTitle, { color: colors.foreground }]}>
+                  {m.label}
+                </Text>
+                {m.mode === "daily" && dailyAlreadyPlayed && (
+                  <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                )}
+              </View>
               <Text
                 style={[styles.cardDesc, { color: colors.mutedForeground }]}
               >
                 {m.desc}
               </Text>
+              {m.mode === "daily" && (
+                <Text style={[styles.streakText, { color: m.color }]}>
+                  🔥 {profile.dailyStreak} day streak
+                </Text>
+              )}
             </View>
             {m.badge && (
               <View
@@ -237,5 +266,10 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily: "Inter_700Bold",
     letterSpacing: 1,
+  },
+  streakText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    marginTop: 4,
   },
 });
