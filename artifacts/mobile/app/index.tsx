@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
+import { getDailyTrainingPlan } from "@/engine/brainTraining";
 
 const { width, height } = Dimensions.get("window");
 
@@ -74,6 +75,12 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { profile } = usePlayer();
+  const plan = getDailyTrainingPlan({
+    totalPuzzles: profile.totalPuzzles,
+    lastDailyDate: profile.lastDailyDate,
+    records: profile.records,
+    trainingStats: profile.trainingStats,
+  });
   const logoAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -107,25 +114,59 @@ export default function HomeScreen() {
         style={[styles.logoArea, { transform: [{ scale: logoScale }] }]}
       >
         <Text style={[styles.logoSubtitle, { color: colors.mutedForeground }]}>
-          ★ CONNECT ★ COLOR ★ CONQUER ★
+          VISUAL FOCUS · MEMORY · SPEED CONTROL
         </Text>
         <Text style={[styles.logoTitle, { color: colors.primary }]}>DOT</Text>
         <Text style={[styles.logoTitle, { color: colors.accent }]}>RUSH</Text>
         <View style={[styles.logoBadge, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "55" }]}>
           <Text style={[styles.logoBadgeText, { color: colors.primary }]}>
-            {profile.totalStars} ★  STARS
+            {profile.totalStars} ★  BRAIN REPS
           </Text>
+        </View>
+        <View style={[styles.promiseCard, { backgroundColor: colors.card + "DD", borderColor: colors.border }]}>
+          <Text style={[styles.promiseTitle, { color: colors.foreground }]}>
+            {plan.headline}
+          </Text>
+          <Text style={[styles.promiseText, { color: colors.mutedForeground }]}>
+            {plan.steps.map((step) => step.title).join(" · ")}
+          </Text>
+          <Text style={[styles.promiseHint, { color: colors.primary }]}>
+            {plan.subline}
+          </Text>
+          <View style={styles.planMiniRow}>
+            {plan.steps.map((step, index) => (
+              <View
+                key={`${step.mode}-${index}`}
+                style={[styles.planMiniPill, { borderColor: colors.primary + "55" }]}
+              >
+                <Text style={[styles.planMiniNum, { color: colors.primary }]}>
+                  {index + 1}
+                </Text>
+                <Text style={[styles.planMiniText, { color: colors.foreground }]}>
+                  {step.shortTitle}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
       </Animated.View>
 
       <View style={styles.buttons}>
         <MenuButton
-          label="PLAY SOLO"
-          icon="game-controller"
+          label="START TODAY'S PLAN"
+          icon="fitness"
           bgColor={colors.primary}
           textColor={colors.primaryForeground}
           onPress={() => router.push("/modes")}
-          testID="btn-play-solo"
+          testID="btn-start-plan"
+        />
+        <MenuButton
+          label="TRAINING MODES"
+          icon="grid"
+          bgColor={colors.isDark ? colors.surfaceHigh : colors.secondary}
+          textColor={colors.foreground}
+          onPress={() => router.push("/modes")}
+          testID="btn-training-modes"
         />
         <MenuButton
           label="MULTIPLAYER"
@@ -146,7 +187,7 @@ export default function HomeScreen() {
             flex
           />
           <MenuButton
-            label="HOW TO PLAY"
+            label="TRAINING GUIDE"
             icon="help-circle"
             bgColor={"#BF5FFF"}
             textColor={"#FFFFFF"}
@@ -166,7 +207,7 @@ export default function HomeScreen() {
           },
         ]}
       >
-        64 · 128 · 256 DOTS
+        64 · 128 · 256 DOT NEURODRILLS
       </Text>
     </LinearGradient>
   );
@@ -241,7 +282,7 @@ const styles = StyleSheet.create({
   },
   logoArea: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 28,
   },
   logoSubtitle: {
     fontSize: 10,
@@ -252,7 +293,7 @@ const styles = StyleSheet.create({
   logoTitle: {
     fontSize: 72,
     fontFamily: "Inter_700Bold",
-    letterSpacing: -2,
+    letterSpacing: 0,
     lineHeight: 76,
     textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 2, height: 4 },
@@ -269,6 +310,62 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_700Bold",
     letterSpacing: 1,
+  },
+  promiseCard: {
+    width: Math.min(width * 0.82, 420),
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  promiseTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  promiseText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  promiseHint: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 14,
+    letterSpacing: 1,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  planMiniRow: {
+    gap: 7,
+    marginTop: 6,
+  },
+  planMiniPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    backgroundColor: "rgba(255,255,255,0.04)",
+  },
+  planMiniNum: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    textAlign: "center",
+    fontSize: 11,
+    lineHeight: 18,
+    fontFamily: "Inter_700Bold",
+  },
+  planMiniText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: "Inter_600SemiBold",
   },
   buttons: {
     width: "80%",

@@ -21,6 +21,7 @@ function findWorkspaceRoot(startDir) {
 
 const workspaceRoot = findWorkspaceRoot(projectRoot);
 const basePath = (process.env.BASE_PATH || "/").replace(/\/+$/, "");
+const pnpmBin = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 function exitWithError(message) {
   console.error(message);
@@ -67,10 +68,7 @@ function getDeploymentDomain() {
     return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
   }
 
-  console.error(
-    "ERROR: No deployment domain found. Set REPLIT_INTERNAL_APP_DOMAIN, REPLIT_DEV_DOMAIN, or EXPO_PUBLIC_DOMAIN",
-  );
-  process.exit(1);
+  return "localhost:8081";
 }
 
 function prepareDirectories(timestamp) {
@@ -139,15 +137,15 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
-    EXPO_PUBLIC_REPL_ID: expoPublicReplId,
   };
 
   if (expoPublicReplId) {
+    env.EXPO_PUBLIC_REPL_ID = expoPublicReplId;
     console.log(`Setting EXPO_PUBLIC_REPL_ID=${expoPublicReplId}`);
   }
 
   metroProcess = spawn(
-    "pnpm",
+    pnpmBin,
     [
       "exec",
       "expo",
@@ -161,8 +159,13 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
       detached: false,
       cwd: projectRoot,
       env,
+      shell: process.platform === "win32",
     },
   );
+
+  metroProcess.on("error", (error) => {
+    exitWithError(`Failed to start Metro with ${pnpmBin}: ${error.message}`);
+  });
 
   if (metroProcess.stdout) {
     metroProcess.stdout.on("data", (data) => {

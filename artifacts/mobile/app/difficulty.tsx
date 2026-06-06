@@ -16,6 +16,8 @@ import { usePlayer } from "@/context/PlayerContext";
 import { THEMES, ThemeName, THEME_NAMES } from "@/engine/themes";
 import { Difficulty } from "@/engine/puzzleGenerator";
 import { getDailyPuzzleSeed } from "@/engine/puzzleGenerator";
+import { COGNITIVE_FOCUS, DIFFICULTY_LOAD } from "@/engine/brainTraining";
+import type { GameMode } from "@/context/GameContext";
 
 const DIFFICULTIES: Array<{
   key: Difficulty;
@@ -31,7 +33,7 @@ const DIFFICULTIES: Array<{
     dots: 64,
     shapes: "8 shapes",
     color: "#39FF14",
-    desc: "Simple polygons, wider spacing",
+    desc: DIFFICULTY_LOAD.easy.detail,
   },
   {
     key: "medium",
@@ -39,7 +41,7 @@ const DIFFICULTIES: Array<{
     dots: 128,
     shapes: "16 shapes",
     color: "#FFD700",
-    desc: "Complex shapes, irregular figures",
+    desc: DIFFICULTY_LOAD.medium.detail,
   },
   {
     key: "hard",
@@ -47,7 +49,7 @@ const DIFFICULTIES: Array<{
     dots: 256,
     shapes: "28 shapes",
     color: "#FF3CAC",
-    desc: "Dense puzzle, non-orthodox shapes",
+    desc: DIFFICULTY_LOAD.hard.detail,
   },
 ];
 
@@ -59,6 +61,9 @@ export default function DifficultyScreen() {
 
   const [selectedDiff, setSelectedDiff] = useState<Difficulty>("easy");
   const [selectedTheme, setSelectedTheme] = useState<ThemeName>("animals");
+  const modeParam = (mode ?? "timed") as GameMode;
+  const activeMode = modeParam in COGNITIVE_FOCUS ? modeParam : "timed";
+  const focus = COGNITIVE_FOCUS[activeMode];
 
   const handleStart = () => {
     const seed =
@@ -95,7 +100,7 @@ export default function DifficultyScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          DIFFICULTY
+          TRAINING LOAD
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -107,8 +112,22 @@ export default function DifficultyScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        <View style={[styles.focusCard, { backgroundColor: colors.card, borderColor: focus.color + "55" }]}>
+          <View style={[styles.focusIcon, { backgroundColor: focus.color + "22" }]}>
+            <Ionicons name="pulse" size={22} color={focus.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.focusTitle, { color: colors.foreground }]}>
+              {focus.label} session
+            </Text>
+            <Text style={[styles.focusText, { color: colors.mutedForeground }]}>
+              {focus.detail}
+            </Text>
+          </View>
+        </View>
+
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
-          DOT COUNT
+          COGNITIVE LOAD
         </Text>
         <View style={styles.diffRow}>
           {DIFFICULTIES.map((d) => {
@@ -134,7 +153,7 @@ export default function DifficultyScreen() {
                 <Text
                   style={[styles.diffLabel, { color: colors.foreground }]}
                 >
-                  {d.label}
+                  {DIFFICULTY_LOAD[d.key].label.toUpperCase()}
                 </Text>
                 <Text
                   style={[styles.diffShapes, { color: colors.mutedForeground }]}
@@ -161,11 +180,18 @@ export default function DifficultyScreen() {
         >
           {DIFFICULTIES.find((d) => d.key === selectedDiff)?.desc}
         </Text>
+        <Text style={[styles.loadCoach, { color: DIFFICULTIES.find((d) => d.key === selectedDiff)?.color }]}>
+          {selectedDiff === "easy"
+            ? "Use this when you want a clean warm-up or recovery rep."
+            : selectedDiff === "medium"
+              ? "Use this as the default daily workout load."
+              : "Use this only when control stayed high on recent reps."}
+        </Text>
 
         <Text
           style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 20 }]}
         >
-          COLOR THEME
+          VISUAL THEME
         </Text>
         <View style={styles.themeGrid}>
           {THEME_NAMES.map((t) => {
@@ -249,7 +275,7 @@ export default function DifficultyScreen() {
         >
           <Ionicons name="play" size={20} color={colors.primaryForeground} />
           <Text style={[styles.startBtnText, { color: colors.primaryForeground }]}>
-            START GAME
+            START TRAINING
           </Text>
         </TouchableOpacity>
       </View>
@@ -273,6 +299,32 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   content: { padding: 20, gap: 10 },
+  focusCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    marginBottom: 8,
+  },
+  focusIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  focusTitle: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+  },
+  focusText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+    marginTop: 2,
+  },
   sectionLabel: {
     fontSize: 11,
     fontFamily: "Inter_700Bold",
@@ -303,6 +355,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     marginTop: 4,
+  },
+  loadCoach: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 16,
+    textAlign: "center",
   },
   themeGrid: {
     flexDirection: "row",

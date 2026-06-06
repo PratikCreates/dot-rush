@@ -121,7 +121,7 @@ export default function GameScreen() {
         ? calculateStars(finalScore, maxScore, timeLimitSec > 0 ? timeLimitSec - timeMs / 1000 : 999, timeLimitSec || 999, state.wrongTaps)
         : 0;
 
-      saveRecord(seed, difficulty, mode, finalScore, timeMs, stars, shapesColored);
+      saveRecord(seed, difficulty, mode, finalScore, timeMs, stars, shapesColored, state.wrongTaps, !state.isComplete);
       if (mode === "endless") updateEndlessStreak(state.endlessStreak);
 
       setTimeout(() => {
@@ -131,6 +131,7 @@ export default function GameScreen() {
             score: String(finalScore),
             stars: String(stars),
             timeMs: String(timeMs),
+            wrongTaps: String(state.wrongTaps),
             seed: String(seed),
             difficulty,
             mode,
@@ -239,7 +240,7 @@ export default function GameScreen() {
     const shapesColored = state.shapes.filter((s) => s.isColored).length;
     const finalScore = state.score;
     
-    saveRecord(seed, difficulty, mode, finalScore, timeMs, 3, shapesColored);
+    saveRecord(seed, difficulty, mode, finalScore, timeMs, 3, shapesColored, state.wrongTaps, false);
     updateEndlessStreak(state.endlessStreak);
 
     router.replace({
@@ -253,6 +254,7 @@ export default function GameScreen() {
         mode,
         theme,
         failed: "0",
+        wrongTaps: String(state.wrongTaps),
       },
     });
   }, [state, seed, difficulty, mode, theme, saveRecord, updateEndlessStreak]);
@@ -303,7 +305,7 @@ export default function GameScreen() {
         </TouchableOpacity>
         <View style={styles.modeLabel}>
           <Text style={[styles.modeLabelText, { color: colors.primary }]}>
-            {mode.toUpperCase()}
+            {mode === "timed" ? "FOCUS SPRINT" : mode === "challenge" ? "PRESSURE CONTROL" : mode === "daily" ? "DAILY NEUROSET" : mode === "endless" ? "ADAPTIVE FLOW" : mode === "accuracy" ? "PRECISION LAB" : "PROCESSING SPEED"}
             {mode === "endless" && ` · LEVEL ${state.endlessLevel}`}
           </Text>
           <Text style={[styles.diffLabel, { color: colors.mutedForeground }]}>
@@ -365,7 +367,7 @@ export default function GameScreen() {
         {state.selectedShapeId !== null && (
           <View style={styles.instructionBubble}>
             <Text style={[styles.instructionText, { color: colors.primary }]}>
-              Tap dot #{state.connection.connectedDotCount + 1} · {state.connection.mistakes}/3 mistakes
+              Find dot #{state.connection.connectedDotCount + 1} before you tap · {state.connection.mistakes}/3 errors
             </Text>
           </View>
         )}
@@ -418,7 +420,7 @@ export default function GameScreen() {
         />
         <View style={styles.mistakesDisplay}>
           <Text style={[styles.mistakesLabel, { color: colors.mutedForeground }]}>
-            WRONG
+            ERRORS
           </Text>
           <Text style={[styles.mistakesValue, { color: colors.destructive }]}>
             {state.wrongTaps}

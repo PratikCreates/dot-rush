@@ -1,219 +1,234 @@
-# 🎮 Dot Rush
+# DotRush
 
-A fast-paced puzzle game where you connect dots to form shapes and color them correctly. Built with React Native (Expo) and Express.
+DotRush is a short-form brain-training game built around visual attention, working memory, impulse control, and pace discipline. Each session asks the player to trace shapes, choose the correct colors, avoid wrong taps, and finish under a focused time pressure.
 
-## 🎯 Game Modes
+The goal is not to look like a generic puzzle app. DotRush is designed to feel like a useful daily cognitive workout: quick to start, easy to understand, measurable after every run, and varied enough to keep players returning.
 
-- **Time Trial** - Race against the clock to beat your personal best
-- **Challenge** - Strict countdown mode - fail if time runs out
-- **Daily Puzzle** - Same puzzle for everyone, with daily streak tracking
-- **Endless** - Auto-generates puzzles with increasing difficulty
-- **Accuracy** - No timer, but zero mistakes allowed
-- **Speed Run** - Fastest completion wins
+## What Makes It Useful
 
-## 🎨 Features
+DotRush turns a simple dot-and-color game into repeatable cognitive drills:
 
-### Core Gameplay
-- ✅ Connect dots in sequence to form shapes
-- ✅ Color completed shapes with the correct color
-- ✅ Multiple difficulty levels (Easy, Medium, Hard)
-- ✅ 6 unlockable color themes
-- ✅ Star rating system based on performance
-- ✅ Hint system and color reveal power-ups
+- **Attention**: follow visual order without losing the next target.
+- **Working memory**: keep shape sequence, color target, and board state in mind.
+- **Inhibitory control**: avoid tapping the obvious wrong dot under pressure.
+- **Processing speed**: complete clean runs without rushing into mistakes.
+- **Consistency**: compare daily runs, best scores, weak modes, and training mix.
 
-### Game Enhancements (Recently Added)
-- ✅ **Pause/Resume** - Pause the game anytime with a modal menu
-- ✅ **Endless Mode Progression** - Continue to next level or end your run
-- ✅ **Daily Puzzle Validation** - Prevents multiple plays per day
-- ✅ **Daily Streak Counter** - Track your consecutive daily completions
-- ✅ **Level Counter** - See your current level in endless mode
+DotRush does not claim to diagnose or treat any condition. It is a wellness and skill-practice game, not a medical product.
 
-### Multiplayer Features
-- ✅ WebSocket-based real-time multiplayer
-- ✅ Room creation with 4-digit codes
-- ✅ Host controls (kick, ban, mode selection)
-- ✅ Team assignment for 2v2 modes
-- ✅ **Auto-reconnection** - Automatic reconnection with exponential backoff
-- ✅ **Connection Status** - Real-time connection indicator
-- ✅ Synchronized game start with countdown
+## Training Modes
 
-### Player Progression
-- ✅ Profile with stats tracking
-- ✅ Personal best records per puzzle
-- ✅ Theme unlocking at star milestones (15, 30, 50, 75 stars)
-- ✅ Win/loss tracking
-- ✅ Endless streak records
+DotRush has six modes, each aimed at a different mental load:
 
-## 🏗️ Architecture
+| Mode | Trains | Player pressure |
+| --- | --- | --- |
+| **Time Trial** | Visual speed and steady scanning | Finish fast while staying accurate |
+| **Challenge** | Composure under strict limits | Beat the countdown or fail the rep |
+| **Daily Puzzle** | Habit, recall, and consistency | One shared daily board |
+| **Endless** | Cognitive endurance | Keep solving as boards intensify |
+| **Accuracy** | Impulse control | No timer, but mistakes matter more |
+| **Speed Run** | Fast decision loops | Optimize completion time |
 
-### Mobile App (`artifacts/mobile`)
-- **Framework**: Expo 54 + React Native
-- **Routing**: Expo Router (file-based)
-- **State Management**: React Context (GameContext, PlayerContext)
-- **Storage**: AsyncStorage for local persistence
-- **Styling**: StyleSheet with theme support (dark/light mode)
+Difficulty levels become training loads:
 
-### API Server (`artifacts/api-server`)
-- **Framework**: Express 5
-- **WebSocket**: ws library for multiplayer
-- **Logging**: Pino
-- **Build**: esbuild
+- **Warm-up Load**: lower pressure for onboarding or recovery reps.
+- **Training Load**: the normal daily workout.
+- **Peak Load**: harder boards for sharper focus sessions.
 
-### Game Engine (`artifacts/mobile/engine`)
-- **Puzzle Generation**: Voronoi-like region growing algorithm
-- **Graph Coloring**: Greedy algorithm for color assignment
-- **Seeded RNG**: Reproducible puzzles for daily mode
-- **Scoring**: Points for connections, colors, and accuracy
+## Core Loop
 
-## 🚀 Getting Started
+1. Pick a training mode.
+2. Choose a difficulty load and visual theme.
+3. Tap dots in sequence to complete each shape.
+4. Choose the correct color for completed shapes.
+5. Review your cognitive report card after the run.
+6. Use the profile screen to see weak modes, average brain score, error rate, and recent training mix.
 
-### Prerequisites
-- Node.js 18+
-- pnpm (recommended) or npm
-- Expo CLI
+The app is intentionally session-sized. A useful run should take about one or two minutes, which makes it practical as a daily focus reset.
 
-### Installation
+## Brain Score
+
+DotRush records a brain score after each completed run. The score is intentionally simple and transparent:
+
+- **Accuracy** rewards clean inputs and fewer wrong taps.
+- **Control** rewards avoiding failed runs and careless actions.
+- **Pace** rewards finishing efficiently without making the game only about raw speed.
+- **Composite** combines those signals into a 0-100 training score.
+
+The profile screen tracks best and average composite score by mode, total wrong taps, sessions completed, and the current weakest training area.
+
+After each run, DotRush also gives an adaptive next-rep recommendation:
+
+- **Increase load** when the player finishes cleanly with a high composite score.
+- **Hold** when accuracy is good but pace or consistency needs another rep.
+- **Recover** when the run fails or impulse errors are too high.
+
+See [BRAIN_TRAINING_PROTOCOL.md](BRAIN_TRAINING_PROTOCOL.md) for the recommended daily routine and safety limits.
+
+## Features
+
+- React Native mobile app powered by Expo Router.
+- Six training modes with distinct cognitive framing.
+- Three difficulty loads with clear player guidance.
+- Local progression, records, stars, unlocked themes, and daily streaks.
+- Results screen with a readable cognitive report card.
+- Adaptive post-run training recommendations.
+- Shared daily training plan shown on Home and Profile.
+- Mode selection marks today’s recommended reps directly in the list.
+- Training-load screen explains what the selected session trains.
+- Profile screen with a three-rep plan, weakest-mode focus, and training scoreboard.
+- Optional real-time multiplayer lobby and room flow.
+- Deterministic daily puzzle generation with seeded boards.
+- Dark and light theme support.
+- TypeScript-first codebase with build and logic tests.
+
+## Project Structure
+
+```text
+.
+|-- artifacts/
+|   |-- mobile/              # Expo React Native app
+|   |   |-- app/             # Screens and routes
+|   |   |-- context/         # Player and game state
+|   |   |-- engine/          # Puzzle, scoring, themes, brain scoring
+|   |   `-- scripts/         # Mobile build helpers
+|   |-- api-server/          # Express + WebSocket multiplayer server
+|   `-- mockup-sandbox/      # Web mockup/build artifact
+|-- scripts/
+|   `-- test-brain-training.mjs
+|-- package.json
+|-- pnpm-workspace.yaml
+`-- README.md
+```
+
+## Quick Start
+
+Prerequisites:
+
+- Node.js 18 or newer
+- pnpm
+- Expo-compatible mobile simulator, device, or Expo Go
+
+Install dependencies:
 
 ```bash
-# Install dependencies
 pnpm install
+```
 
-# Start API server (in one terminal)
-cd artifacts/api-server
-pnpm dev
+Run the full verification gate:
 
-# Start mobile app (in another terminal)
+```bash
+pnpm run build
+```
+
+Run only the brain-training logic test:
+
+```bash
+pnpm run test
+```
+
+Run the mobile app:
+
+```bash
 cd artifacts/mobile
 pnpm dev
 ```
 
-### Environment Variables
+Run the multiplayer API server:
 
-**Mobile App** (`.env`):
+```bash
+cd artifacts/api-server
+pnpm dev
 ```
+
+## Environment
+
+Mobile app:
+
+```env
 EXPO_PUBLIC_WS_URL=ws://localhost:8080/ws
 ```
 
-**API Server** (`.env`):
-```
+API server:
+
+```env
 PORT=8080
 ```
 
-## 📱 Screens
+When the mobile app is built locally, the workspace build helper defaults to `localhost:8081` for Metro to avoid common Windows shell and host issues.
 
-- **Home** - Main menu with floating dot animation
-- **Modes** - Game mode selection with descriptions
-- **Difficulty** - Choose difficulty and theme
-- **Game** - Main gameplay screen with canvas, HUD, and controls
-- **Results** - Score summary with stars and personal best
-- **Profile** - Player stats and theme unlocking
-- **Multiplayer** - Room creation, joining, and lobby management
-- **How to Play** - Tutorial with animated examples
+## Verification
 
-## 🎮 Controls
+Current verification command:
 
-- **Tap a shape** - Select it for dot connection
-- **Tap dots in order** - Connect them sequentially
-- **Tap color swatch** - Color the completed shape
-- **Hint button** - Highlight the next dot to tap
-- **Color reveal** - Show the correct color for current shape
-- **Pause button** - Pause the game (top right)
+```bash
+pnpm run build
+```
 
-## 🔧 Recent Improvements
+That command runs:
 
-### Game Features
-1. **Pause/Resume System**
-   - Modal pause menu with resume and quit options
-   - Timer pauses when game is paused
-   - Prevents accidental quits
+- `pnpm run test`
+- `pnpm run typecheck`
+- package builds for workspace artifacts that define a build script
 
-2. **Endless Mode Enhancements**
-   - Auto-generates next level on completion
-   - Continue or end run modal
-   - Level counter in header
-   - Cumulative score tracking
+The brain-training test validates:
 
-3. **Daily Puzzle System**
-   - Validates same-day constraint
-   - Shows completion status on modes screen
-   - Daily streak counter with fire emoji
-   - Prevents multiple plays per day
+- all six cognitive modes are described
+- difficulty labels match the app copy
+- clean runs score higher than messy runs
+- adaptive recommendations distinguish increase and recovery reps
+- daily training plans target uncovered and weakest cognitive systems
+- training stats update averages, best score, wrong taps, and failed runs correctly
 
-### Multiplayer Improvements
-4. **WebSocket Reconnection**
-   - Automatic reconnection with exponential backoff
-   - Max 5 reconnection attempts
-   - Reconnecting/reconnected alerts
-   - Proper cleanup on unmount
+Expo may print patch-version warnings for installed SDK packages. Those warnings are non-blocking as long as the build and typecheck finish successfully.
 
-5. **Connection Status**
-   - Real-time connection indicator
-   - Visual feedback (green/red icon)
-   - Connection status text
+## Architecture
 
-### Code Quality
-6. **TypeScript Fixes**
-   - Resolved process.env access issues
-   - Cross-environment compatibility
-   - Proper type definitions
+### Mobile App
 
-## 📊 Game Mechanics
+- **Framework**: Expo + React Native
+- **Routing**: Expo Router
+- **State**: React Context
+- **Persistence**: AsyncStorage
+- **UI**: StyleSheet-based themed components
 
-### Scoring
-- **Shape Connected**: +10 points
-- **Shape Colored Correctly**: +40 points
-- **Region Correct**: +5 points
-- **Wrong Tap**: -2 points
-- **Wrong Color**: -1 point
-- **Speed Bonus**: Based on remaining time
+### Game Engine
 
-### Star Rating
-- 3 stars: High score, fast time, few mistakes
-- 2 stars: Good performance
-- 1 star: Completed but with issues
-- 0 stars: Failed or time expired
+- `puzzleGenerator.ts`: seeded dot and shape generation
+- `graphColoring.ts`: color assignment logic
+- `scoring.ts`: gameplay score and stars
+- `brainTraining.ts`: cognitive focus metadata and brain-score math
+- `getDailyTrainingPlan`: shared daily prescription logic for Home and Profile
+- `BRAIN_TRAINING_PROTOCOL.md`: daily-use protocol and safety limits
+- `themes.ts`: unlockable visual themes
 
-### Mistake System
-- 3 mistakes allowed per shape connection
-- After 3 mistakes, connection resets
-- Accuracy mode: 0 mistakes allowed
+### API Server
 
-## 🎨 Themes
+- **Framework**: Express
+- **Realtime**: `ws`
+- **Use case**: room creation, lobby state, reconnection, multiplayer readiness
 
-1. **Animals** (Default)
-2. **Food** (Default)
-3. **Nature** (15 stars)
-4. **Vehicles** (30 stars)
-5. **Space** (50 stars)
-6. **Holidays** (75 stars)
+## Design Principles
 
-## 🐛 Known Issues & Future Improvements
+- **Fast entry**: players should start a useful rep in seconds.
+- **Readable feedback**: results explain what improved and what to train next.
+- **Guided choice**: mode and load selection explain why a rep matters before play starts.
+- **Small sessions**: the game should fit into a work break, commute, or study reset.
+- **Honest framing**: cognitive practice is useful, but the app avoids medical claims.
+- **Low friction**: defaults are chosen so new players can play without setup decisions.
 
-### To Be Implemented
-- [ ] Multiplayer real-time game sync (progress tracking)
-- [ ] Best of 5 round management
-- [ ] Tournament bracket system
-- [ ] Team 2v2 dot/color split
-- [ ] Global leaderboards
-- [ ] Achievements system
-- [ ] Undo/redo functionality
-- [ ] Tutorial mode
-- [ ] Sound effects and music
-- [ ] Haptic feedback improvements
+## Roadmap
 
-### Performance Optimizations Needed
-- [ ] Puzzle generation caching
-- [ ] SVG rendering optimization for hard mode
-- [ ] Lazy loading for multiplayer player lists
+High-impact next improvements:
 
-## 📝 License
+- Guided 7-day training plans.
+- Haptic feedback for correct rhythm and wrong-tap recovery.
+- Audio cues for attention and speed modes.
+- Global and friend leaderboards.
+- More adaptive difficulty based on recent score trends.
+- Accessibility pass for colorblind palettes and larger tap targets.
+- Multiplayer race mode with synchronized boards.
+
+## License
 
 MIT
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📧 Contact
-
-For questions or feedback, please open an issue on GitHub.

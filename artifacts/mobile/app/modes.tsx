@@ -16,7 +16,7 @@ import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { GameMode } from "@/context/GameContext";
 import { usePlayer } from "@/context/PlayerContext";
-import { getDailyPuzzleSeed } from "@/engine/puzzleGenerator";
+import { COGNITIVE_FOCUS, getDailyTrainingPlan } from "@/engine/brainTraining";
 
 const MODES: Array<{
   mode: GameMode;
@@ -28,50 +28,50 @@ const MODES: Array<{
 }> = [
   {
     mode: "timed",
-    label: "TIME TRIAL",
-    desc: "Race the clock. Beat your personal best!",
+    label: COGNITIVE_FOCUS.timed.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.timed.short,
     icon: "stopwatch",
-    color: "#FF3CAC",
-    badge: "CLASSIC",
+    color: COGNITIVE_FOCUS.timed.color,
+    badge: "ATTENTION",
   },
   {
     mode: "challenge",
-    label: "CHALLENGE",
-    desc: "Strict countdown. Fail if time runs out.",
+    label: COGNITIVE_FOCUS.challenge.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.challenge.short,
     icon: "flame",
-    color: "#FF8C00",
-    badge: "HARD",
+    color: COGNITIVE_FOCUS.challenge.color,
+    badge: "CONTROL",
   },
   {
     mode: "daily",
-    label: "DAILY PUZZLE",
-    desc: "Same puzzle for everyone. Streaks rewarded!",
+    label: COGNITIVE_FOCUS.daily.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.daily.short,
     icon: "calendar",
-    color: "#36D6FF",
-    badge: "DAILY",
+    color: COGNITIVE_FOCUS.daily.color,
+    badge: "HABIT",
   },
   {
     mode: "endless",
-    label: "ENDLESS",
-    desc: "Auto-generates puzzles. How far can you go?",
+    label: COGNITIVE_FOCUS.endless.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.endless.short,
     icon: "infinite",
-    color: "#BF5FFF",
-    badge: "STREAK",
+    color: COGNITIVE_FOCUS.endless.color,
+    badge: "ENDURANCE",
   },
   {
     mode: "accuracy",
-    label: "ACCURACY",
-    desc: "No timer. Zero wrong taps allowed.",
+    label: COGNITIVE_FOCUS.accuracy.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.accuracy.short,
     icon: "checkmark-circle",
-    color: "#39FF14",
+    color: COGNITIVE_FOCUS.accuracy.color,
   },
   {
     mode: "speedrun",
-    label: "SPEED RUN",
-    desc: "Fastest completion wins. Personal best tracked.",
+    label: COGNITIVE_FOCUS.speedrun.label.toUpperCase(),
+    desc: COGNITIVE_FOCUS.speedrun.short,
     icon: "flash",
-    color: "#FFD700",
-    badge: "FASTEST",
+    color: COGNITIVE_FOCUS.speedrun.color,
+    badge: "SPEED",
   },
 ];
 
@@ -79,6 +79,13 @@ export default function ModesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { hasDailyBeenPlayed, profile } = usePlayer();
+  const plan = getDailyTrainingPlan({
+    totalPuzzles: profile.totalPuzzles,
+    lastDailyDate: profile.lastDailyDate,
+    records: profile.records,
+    trainingStats: profile.trainingStats,
+  });
+  const recommendedByMode = new Map(plan.steps.map((step, index) => [step.mode, { ...step, index }]));
 
   const gradStart = colors.isDark ? "#0D0020" : "#FFF0FC";
   const gradEnd = colors.isDark ? "#0A001A" : "#E8C0FF";
@@ -131,11 +138,41 @@ export default function ModesScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Choose how you want to play
-        </Text>
-        {MODES.map((m) => (
-          <TouchableOpacity
+        <View style={[styles.coachCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.coachTitle, { color: colors.foreground }]}>
+            {plan.headline}
+          </Text>
+          <Text style={[styles.coachText, { color: colors.mutedForeground }]}>
+            {plan.subline}. Recommended reps are marked below so you can start without planning.
+          </Text>
+          <View style={styles.planRow}>
+            {plan.steps.map((step, index) => (
+              <TouchableOpacity
+                key={`${step.mode}-${index}`}
+                style={[
+                  styles.planChip,
+                  {
+                    backgroundColor: COGNITIVE_FOCUS[step.mode].color + "18",
+                    borderColor: COGNITIVE_FOCUS[step.mode].color + "55",
+                  },
+                ]}
+                onPress={() => handleModeSelect(step.mode)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.planChipNum, { color: COGNITIVE_FOCUS[step.mode].color }]}>
+                  {index + 1}
+                </Text>
+                <Text style={[styles.planChipText, { color: colors.foreground }]}>
+                  {COGNITIVE_FOCUS[step.mode].label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {MODES.map((m) => {
+          const recommendation = recommendedByMode.get(m.mode);
+          return (
+            <TouchableOpacity
             key={m.mode}
             style={[
               styles.card,
@@ -173,13 +210,21 @@ export default function ModesScreen() {
               >
                 {m.desc}
               </Text>
+              <Text style={[styles.focusDetail, { color: m.color }]}>
+                {COGNITIVE_FOCUS[m.mode].detail}
+              </Text>
+              {recommendation && (
+                <Text style={[styles.recommendReason, { color: m.color }]}>
+                  Today #{recommendation.index + 1}: {recommendation.reason}
+                </Text>
+              )}
               {m.mode === "daily" && (
                 <Text style={[styles.streakText, { color: m.color }]}>
                   🔥 {profile.dailyStreak} day streak
                 </Text>
               )}
             </View>
-            {m.badge && (
+            {(recommendation || m.badge) && (
               <View
                 style={[
                   styles.badge,
@@ -187,7 +232,7 @@ export default function ModesScreen() {
                 ]}
               >
                 <Text style={[styles.badgeText, { color: m.color }]}>
-                  {m.badge}
+                  {recommendation ? `PLAN ${recommendation.index + 1}` : m.badge}
                 </Text>
               </View>
             )}
@@ -196,8 +241,9 @@ export default function ModesScreen() {
               size={20}
               color={colors.mutedForeground}
             />
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </LinearGradient>
   );
@@ -219,11 +265,47 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   content: { padding: 20, gap: 12 },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
+  coachCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    gap: 5,
+    marginBottom: 4,
+  },
+  coachTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
     textAlign: "center",
-    marginBottom: 8,
+  },
+  coachText: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  planRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  planChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  planChipNum: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+  },
+  planChipText: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
   },
   card: {
     flexDirection: "row",
@@ -255,6 +337,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
     lineHeight: 17,
+  },
+  focusDetail: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  recommendReason: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 14,
+    marginTop: 5,
   },
   badge: {
     paddingHorizontal: 8,

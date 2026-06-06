@@ -6,6 +6,8 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { getBrainScore, updateTrainingStat } from "@/engine/brainTraining";
+import type { CognitiveTrainingStat } from "@/engine/brainTraining";
 
 export interface PuzzleRecord {
   seed: number;
@@ -16,7 +18,12 @@ export interface PuzzleRecord {
   stars: number;
   completions: number;
   lastPlayedAt: number;
+  bestBrainScore?: number;
+  lastBrainScore?: number;
+  totalWrongTaps?: number;
 }
+
+export type TrainingStat = CognitiveTrainingStat;
 
 export interface PlayerProfile {
   displayName: string;
@@ -29,6 +36,7 @@ export interface PlayerProfile {
   dailyStreak: number;
   lastDailyDate: string;
   records: Record<string, PuzzleRecord>;
+  trainingStats: Record<string, TrainingStat>;
   unlockedThemes: string[];
 }
 
@@ -43,6 +51,7 @@ const DEFAULT_PROFILE: PlayerProfile = {
   dailyStreak: 0,
   lastDailyDate: "",
   records: {},
+  trainingStats: {},
   unlockedThemes: ["animals", "food"],
 };
 
@@ -56,7 +65,9 @@ interface PlayerContextValue {
     score: number,
     timeMs: number,
     stars: number,
-    shapesCompleted: number
+    shapesCompleted: number,
+    wrongTaps?: number,
+    failed?: boolean
   ) => void;
   updateEndlessStreak: (streak: number) => void;
   recordWin: () => void;
@@ -107,10 +118,22 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       score: number,
       timeMs: number,
       stars: number,
-      shapesCompleted: number
+      shapesCompleted: number,
+      wrongTaps = 0,
+      failed = false
     ) => {
       const key = `${seed}_${difficulty}_${mode}`;
       const existing = profile.records[key];
+      const brain = getBrainScore({ score, stars, wrongTaps, timeMs, failed });
+      const trainingStats = profile.trainingStats ?? {};
+      const playedAt = Date.now();
+      const newModeStat = updateTrainingStat({
+        existing: trainingStats[mode],
+        brain,
+        wrongTaps,
+        timeMs,
+        playedAt,
+      });
       const newRecord: PuzzleRecord = {
         seed,
         difficulty,
@@ -124,7 +147,10 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
           : [score],
         stars: Math.max(existing?.stars ?? 0, stars),
         completions: (existing?.completions ?? 0) + 1,
-        lastPlayedAt: Date.now(),
+        lastPlayedAt: playedAt,
+        bestBrainScore: Math.max(existing?.bestBrainScore ?? 0, brain.composite),
+        lastBrainScore: brain.composite,
+        totalWrongTaps: (existing?.totalWrongTaps ?? 0) + wrongTaps,
       };
 
       const newStars =
@@ -142,6 +168,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         totalPuzzles: profile.totalPuzzles + 1,
         unlockedThemes: newThemes,
         records: { ...profile.records, [key]: newRecord },
+        trainingStats: { ...trainingStats, [mode]: newModeStat },
       });
     },
     [profile, persist]

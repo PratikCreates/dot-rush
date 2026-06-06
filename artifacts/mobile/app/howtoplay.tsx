@@ -61,7 +61,7 @@ function SelectShapeDemo({ colors, anim }: { colors: AppColors; anim: Animated.V
         }}
       />
       <Text style={[styles.demoCaption, { color: colors.mutedForeground }]}>
-        Tap any dashed shape to begin
+        Choose one target and ignore the rest
       </Text>
     </View>
   );
@@ -137,7 +137,7 @@ function ConnectDotsDemo({ colors, anim }: { colors: AppColors; anim: Animated.V
         })}
       </Svg>
       <Text style={[styles.demoCaption, { color: colors.mutedForeground }]}>
-        Tap dots 1 → 2 → 3 → 4 → 5 in order
+        Keep the next number in working memory
       </Text>
     </View>
   );
@@ -188,7 +188,7 @@ function ColorShapeDemo({ colors, anim }: { colors: AppColors; anim: Animated.Va
         ))}
       </View>
       <Text style={[styles.demoCaption, { color: colors.mutedForeground }]}>
-        Pick the matching color from the palette
+        Match color after the path is complete
       </Text>
     </View>
   );
@@ -217,7 +217,7 @@ function CompleteDemo({ colors, anim }: { colors: AppColors; anim: Animated.Valu
         ))}
       </Animated.View>
       <Text style={[styles.demoCaption, { color: colors.mutedForeground }]}>
-        Fill all shapes to earn up to 3 stars!
+        Clean solves build better training reps
       </Text>
     </View>
   );
@@ -258,7 +258,7 @@ function ScoringDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value
         </View>
       ))}
       <Text style={[styles.demoCaption, { color: colors.mutedForeground }]}>
-        Team scores are summed across all players
+        Group sessions add social pressure
       </Text>
     </View>
   );
@@ -267,40 +267,40 @@ function ScoringDemo({ colors, anim }: { colors: AppColors; anim: Animated.Value
 const STEPS: Step[] = [
   {
     id: 1,
-    title: "Select a Shape",
-    subtitle: "Tap any dashed outline on the puzzle to choose which shape to work on next.",
+    title: "Lock Attention",
+    subtitle: "Tap one dashed outline. Your job is to focus on that target while the rest of the field tries to distract you.",
     color: "#FF3CAC",
     icon: "hand-left",
     Demo: SelectShapeDemo,
   },
   {
     id: 2,
-    title: "Connect the Dots",
-    subtitle: "Tap the numbered dots in order (1, 2, 3…) to trace the outline. Wrong tap? You get 3 chances before reset.",
+    title: "Sequence Under Load",
+    subtitle: "Tap the numbered dots in order. Hold the next target in memory before your finger moves.",
     color: "#36D6FF",
     icon: "git-network",
     Demo: ConnectDotsDemo,
   },
   {
     id: 3,
-    title: "Color It In",
-    subtitle: "After connecting all dots, the color palette appears. Pick the matching color to fill the shape correctly.",
+    title: "Switch Tasks",
+    subtitle: "After tracing, switch from number order to color matching without losing accuracy.",
     color: "#FFD700",
     icon: "color-palette",
     Demo: ColorShapeDemo,
   },
   {
     id: 4,
-    title: "Complete the Puzzle",
-    subtitle: "Fill every shape to win. Faster and fewer mistakes = more stars!",
+    title: "Finish Clean",
+    subtitle: "Fill every shape. Fewer mistakes and steady pacing create a stronger brain-development rep.",
     color: "#39FF14",
     icon: "trophy",
     Demo: CompleteDemo,
   },
   {
     id: 5,
-    title: "Multiplayer Scoring",
-    subtitle: "In races, finishing position earns team points. 1st = 10pts, 2nd = 7pts, 3rd = 4pts, 4th+ = 1pt.",
+    title: "Train Together",
+    subtitle: "Multiplayer adds timing pressure and accountability while keeping the same attention mechanics.",
     color: "#BF5FFF",
     icon: "people",
     Demo: ScoringDemo,
@@ -350,7 +350,7 @@ export default function HowToPlayScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-          HOW TO PLAY
+          TRAINING GUIDE
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -420,11 +420,11 @@ export default function HowToPlayScreen() {
           <Ionicons name="bulb" size={16} color={current.color} />
           <Text style={[styles.tipText, { color: colors.foreground }]}>
             {[
-              "Use the 💡 hint button if you're stuck — it highlights the next dot!",
-              "3 wrong taps in a row resets the current shape's progress.",
-              "Use the 🎨 color hint to reveal the correct color for a connected shape.",
-              "Speed bonus: the faster you finish, the more bonus points you earn!",
-              "Team score = sum of all teammates' position points across all rounds.",
+              "Use hints sparingly. They are best for learning the scan pattern, not replacing it.",
+              "Wrong taps are inhibition feedback. Pause, find the next number, then move.",
+              "Color selection trains task switching after a sequencing burst.",
+              "A fast run with many mistakes is weaker than a controlled run with clean taps.",
+              "Use multiplayer when you want pressure without losing the training structure.",
             ][step]}
           </Text>
         </View>
@@ -460,7 +460,7 @@ export default function HowToPlayScreen() {
               onPress={() => router.back()}
             >
               <Ionicons name="game-controller" size={20} color="#FFF" />
-              <Text style={[styles.navBtnText, { color: "#FFF" }]}>PLAY NOW</Text>
+              <Text style={[styles.navBtnText, { color: "#FFF" }]}>TRAIN NOW</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -59,9 +59,14 @@ export interface LobbyWsState {
 }
 
 const WS_URL = (() => {
+  const expoProcess =
+    typeof globalThis !== "undefined"
+      ? (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+      : undefined;
+
   // Check for Expo environment variable
-  if (typeof global !== "undefined" && (global as any).process?.env?.EXPO_PUBLIC_WS_URL) {
-    return (global as any).process.env.EXPO_PUBLIC_WS_URL;
+  if (expoProcess?.env?.EXPO_PUBLIC_WS_URL) {
+    return expoProcess.env.EXPO_PUBLIC_WS_URL;
   }
   
   // Auto-detect from window location (web)

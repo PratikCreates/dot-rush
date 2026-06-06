@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   Platform,
+  type DimensionValue,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
@@ -16,7 +17,7 @@ import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 import { THEMES, THEME_NAMES } from "@/engine/themes";
-import StarsRow from "@/components/StarsRow";
+import { COGNITIVE_FOCUS, TRAINING_ORDER, getDailyTrainingPlan } from "@/engine/brainTraining";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -25,16 +26,35 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(profile.displayName);
 
-  const winRate =
-    profile.wins + profile.losses > 0
-      ? Math.round((profile.wins / (profile.wins + profile.losses)) * 100)
-      : 0;
-
   const gradStart = colors.isDark ? "#0D0020" : "#FFF0FC";
   const gradEnd = colors.isDark ? "#0A001A" : "#E8C0FF";
 
-  const STAR_MILESTONES = [15, 30, 50, 75];
-
+  const trainingStats = profile.trainingStats ?? {};
+  const plan = getDailyTrainingPlan({
+    totalPuzzles: profile.totalPuzzles,
+    lastDailyDate: profile.lastDailyDate,
+    records: profile.records,
+    trainingStats,
+  });
+  const trainedModeStats = TRAINING_ORDER
+    .map((mode) => ({ mode, stat: trainingStats[mode] }))
+    .filter((item) => item.stat && item.stat.sessions > 0);
+  const averageBrainScore =
+    trainedModeStats.length > 0
+      ? Math.round(
+          trainedModeStats.reduce((sum, item) => sum + (item.stat?.avgComposite ?? 0), 0) /
+            trainedModeStats.length
+        )
+      : 0;
+  const averageErrors =
+    trainedModeStats.length > 0
+      ? (
+          trainedModeStats.reduce((sum, item) => {
+            const stat = item.stat;
+            return sum + (stat ? stat.totalErrors / Math.max(1, stat.sessions) : 0);
+          }, 0) / trainedModeStats.length
+        ).toFixed(1)
+      : "0.0";
   return (
     <LinearGradient colors={[gradStart, gradEnd]} style={{ flex: 1 }}>
       <View
@@ -109,9 +129,52 @@ export default function ProfileScreen() {
           <View style={styles.starsDisplay}>
             <Ionicons name="star" size={18} color={colors.primary} />
             <Text style={[styles.starsCount, { color: colors.primary }]}>
-              {profile.totalStars} Stars
+              {profile.totalStars} Brain Reps
             </Text>
           </View>
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          TODAY'S TRAINING PLAN
+        </Text>
+        <View style={[styles.planCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.planHeader}>
+            <View style={[styles.planIcon, { backgroundColor: colors.primary + "22" }]}>
+              <Ionicons name="pulse" size={22} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.planTitle, { color: colors.foreground }]}>
+                {plan.headline}
+              </Text>
+              <Text style={[styles.planSub, { color: colors.mutedForeground }]}>
+                {plan.subline}
+              </Text>
+            </View>
+          </View>
+          {plan.steps.map((item, index) => (
+            <TouchableOpacity
+              key={`${item.mode}-${index}`}
+              style={[styles.planStep, { borderColor: COGNITIVE_FOCUS[item.mode].color + "44" }]}
+              onPress={() => router.push({ pathname: "/difficulty", params: { mode: item.mode } })}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.planStepNum, { color: COGNITIVE_FOCUS[item.mode].color }]}>
+                {index + 1}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.planStepTitle, { color: colors.foreground }]}>
+                  {item.title}
+                </Text>
+                <Text style={[styles.planStepDetail, { color: colors.mutedForeground }]}>
+                  {item.detail}
+                </Text>
+                <Text style={[styles.planStepReason, { color: COGNITIVE_FOCUS[item.mode].color }]}>
+                  {item.reason}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Stats grid */}
@@ -123,10 +186,10 @@ export default function ProfileScreen() {
             [
               { label: "PUZZLES", value: profile.totalPuzzles, icon: "grid", color: colors.accent },
               { label: "SHAPES", value: profile.totalShapes, icon: "shapes", color: colors.primary },
-              { label: "WIN RATE", value: `${winRate}%`, icon: "trophy", color: "#FFD700" },
+              { label: "BRAIN AVG", value: averageBrainScore || "-", icon: "pulse", color: "#FFD700" },
               { label: "STREAK", value: profile.longestEndlessStreak, icon: "infinite", color: "#BF5FFF" },
               { label: "DAILY STK", value: profile.dailyStreak, icon: "calendar", color: "#36D6FF" },
-              { label: "WINS", value: profile.wins, icon: "ribbon", color: colors.success },
+              { label: "ERR/REP", value: averageErrors, icon: "radio-button-off", color: colors.success },
             ] satisfies Array<{ label: string; value: string | number; icon: IoniconName; color: string }>
           ).map((s) => (
             <View
@@ -145,6 +208,40 @@ export default function ProfileScreen() {
               </Text>
             </View>
           ))}
+        </View>
+
+        <Text
+          style={[styles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}
+        >
+          TRAINING SCOREBOARD
+        </Text>
+        <View style={[styles.mixCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {TRAINING_ORDER.map((mode) => {
+            const stat = trainingStats[mode];
+            const count = stat?.sessions ?? 0;
+            const width: DimensionValue = `${Math.min(100, (stat?.avgComposite ?? 0))}%`;
+            return (
+              <View key={mode} style={styles.mixRow}>
+                <Text style={[styles.mixLabel, { color: colors.foreground }]}>
+                  {COGNITIVE_FOCUS[mode].label}
+                </Text>
+                <View style={[styles.mixTrack, { backgroundColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.mixFill,
+                      {
+                        backgroundColor: COGNITIVE_FOCUS[mode].color,
+                        width,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.mixCount, { color: COGNITIVE_FOCUS[mode].color }]}>
+                  {count ? stat?.avgComposite : "-"}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         {/* Unlocks */}
@@ -277,6 +374,64 @@ const styles = StyleSheet.create({
     letterSpacing: 2.5,
     marginBottom: 6,
   },
+  planCard: {
+    padding: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    gap: 12,
+    marginBottom: 12,
+  },
+  planHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  planIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  planTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+  },
+  planSub: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
+  },
+  planStep: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 12,
+  },
+  planStepNum: {
+    width: 22,
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  planStepTitle: {
+    fontSize: 13,
+    fontFamily: "Inter_700Bold",
+  },
+  planStepDetail: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  planStepReason: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    lineHeight: 14,
+    marginTop: 5,
+  },
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -301,6 +456,38 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     letterSpacing: 1.5,
     textAlign: "center",
+  },
+  mixCard: {
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 10,
+  },
+  mixRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  mixLabel: {
+    width: 112,
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+  },
+  mixTrack: {
+    flex: 1,
+    height: 7,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  mixFill: {
+    height: "100%",
+    borderRadius: 4,
+  },
+  mixCount: {
+    width: 18,
+    textAlign: "right",
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
   },
   themeRow: {
     flexDirection: "row",

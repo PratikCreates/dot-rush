@@ -16,6 +16,7 @@ import { useColors, type AppColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 import { useGame } from "@/context/GameContext";
 import StarsRow from "@/components/StarsRow";
+import { COGNITIVE_FOCUS, getBrainScore, getTrainingRecommendation } from "@/engine/brainTraining";
 
 const CONFETTI_COLORS = [
   "#FF3CAC", "#36D6FF", "#FFD700", "#39FF14", "#BF5FFF", "#FF8C00",
@@ -71,6 +72,7 @@ export default function ResultsScreen() {
     mode: string;
     theme: string;
     failed: string;
+    wrongTaps: string;
   }>();
 
   const { profile } = usePlayer();
@@ -80,6 +82,11 @@ export default function ResultsScreen() {
   const stars = parseInt(params.stars ?? "0", 10);
   const timeMs = parseInt(params.timeMs ?? "0", 10);
   const failed = params.failed === "1";
+  const wrongTaps = parseInt(params.wrongTaps ?? "0", 10);
+  const brain = getBrainScore({ score, stars, wrongTaps, timeMs, failed });
+  const recommendation = getTrainingRecommendation({ brain, wrongTaps, failed });
+  const modeKey = (params.mode ?? "timed") as keyof typeof COGNITIVE_FOCUS;
+  const focus = COGNITIVE_FOCUS[modeKey] ?? COGNITIVE_FOCUS.timed;
 
   const scoreAnim = useRef(new Animated.Value(0)).current;
   const starsAnim = useRef(new Animated.Value(0)).current;
@@ -214,7 +221,7 @@ export default function ResultsScreen() {
             {score}
           </Animated.Text>
           <Text style={[styles.scoreLabel, { color: colors.mutedForeground }]}>
-            POINTS
+            TRAINING POINTS
           </Text>
 
           <View
@@ -239,12 +246,36 @@ export default function ResultsScreen() {
               colors={colors}
             />
             <StatItem
-              label="PLAYS"
-              value={String(record?.completions ?? 1)}
+              label="ERRORS"
+              value={String(wrongTaps)}
               color={colors.success}
               colors={colors}
             />
           </View>
+        </View>
+
+        <View style={[styles.brainCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.brainHeader}>
+            <View style={[styles.brainIcon, { backgroundColor: focus.color + "22" }]}>
+              <Ionicons name="analytics" size={20} color={focus.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.brainTitle, { color: colors.foreground }]}>
+                {focus.label} Report
+              </Text>
+              <Text style={[styles.brainSub, { color: colors.mutedForeground }]}>
+                {brain.trainingLoad} · {focus.short}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.brainGrid}>
+            <BrainMetric label="Accuracy" value={brain.accuracy} color={colors.success} colors={colors} />
+            <BrainMetric label="Control" value={brain.control} color={focus.color} colors={colors} />
+            <BrainMetric label="Pace" value={brain.pace} color={colors.accent} colors={colors} />
+          </View>
+          <Text style={[styles.nextRep, { color: colors.mutedForeground }]}>
+            {recommendation.headline}: {recommendation.nextRep}
+          </Text>
         </View>
 
         {/* Buttons */}
@@ -271,7 +302,7 @@ export default function ResultsScreen() {
           >
             <Ionicons name="refresh" size={20} color={colors.primaryForeground} />
             <Text style={[styles.btnText, { color: colors.primaryForeground }]}>
-              PLAY AGAIN
+              REPEAT THIS REP
             </Text>
           </TouchableOpacity>
 
@@ -286,14 +317,14 @@ export default function ResultsScreen() {
             ]}
             onPress={() => {
               resetGame();
-              router.replace("/");
+              router.replace("/modes");
             }}
             activeOpacity={0.85}
             testID="btn-home"
           >
-            <Ionicons name="home" size={20} color={colors.foreground} />
+            <Ionicons name="fitness" size={20} color={colors.foreground} />
             <Text style={[styles.btnText, { color: colors.foreground }]}>
-              MENU
+              TODAY'S PLAN
             </Text>
           </TouchableOpacity>
         </View>
@@ -319,6 +350,30 @@ function StatItem({
       <Text style={[styles.statLabel2, { color: colors.mutedForeground }]}>
         {label}
       </Text>
+    </View>
+  );
+}
+
+function BrainMetric({
+  label,
+  value,
+  color,
+  colors,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  colors: AppColors;
+}) {
+  return (
+    <View style={styles.brainMetric}>
+      <Text style={[styles.brainMetricValue, { color }]}>{value}</Text>
+      <Text style={[styles.brainMetricLabel, { color: colors.mutedForeground }]}>
+        {label.toUpperCase()}
+      </Text>
+      <View style={[styles.metricBar, { backgroundColor: colors.border }]}>
+        <View style={[styles.metricFill, { backgroundColor: color, width: `${value}%` }]} />
+      </View>
     </View>
   );
 }
@@ -367,6 +422,65 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1.5,
     gap: 8,
+  },
+  brainCard: {
+    width: "100%",
+    padding: 16,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 14,
+  },
+  brainHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  brainIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  brainTitle: {
+    fontSize: 17,
+    fontFamily: "Inter_700Bold",
+  },
+  brainSub: {
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 16,
+  },
+  brainGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  brainMetric: {
+    flex: 1,
+    gap: 4,
+  },
+  brainMetricValue: {
+    fontSize: 24,
+    fontFamily: "Inter_700Bold",
+  },
+  brainMetricLabel: {
+    fontSize: 9,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 1,
+  },
+  metricBar: {
+    height: 5,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  metricFill: {
+    height: "100%",
+    borderRadius: 3,
+  },
+  nextRep: {
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 18,
   },
   scoreValue: {
     fontSize: 56,
