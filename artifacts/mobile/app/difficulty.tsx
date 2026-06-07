@@ -56,10 +56,14 @@ const DIFFICULTIES: Array<{
 export default function DifficultyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { mode } = useLocalSearchParams<{ mode: string }>();
+  const { mode, difficulty } = useLocalSearchParams<{ mode: string; difficulty?: string }>();
   const { profile } = usePlayer();
 
-  const [selectedDiff, setSelectedDiff] = useState<Difficulty>("easy");
+  const initialDifficulty: Difficulty =
+    difficulty === "medium" || difficulty === "hard" || difficulty === "easy"
+      ? difficulty
+      : "easy";
+  const [selectedDiff, setSelectedDiff] = useState<Difficulty>(initialDifficulty);
   const [selectedTheme, setSelectedTheme] = useState<ThemeName>("animals");
   const modeParam = (mode ?? "timed") as GameMode;
   const activeMode = modeParam in COGNITIVE_FOCUS ? modeParam : "timed";

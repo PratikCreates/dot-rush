@@ -74,6 +74,7 @@ See [BRAIN_TRAINING_PROTOCOL.md](BRAIN_TRAINING_PROTOCOL.md) for the recommended
 - Results screen with a readable cognitive report card.
 - Adaptive post-run training recommendations.
 - Shared daily training plan shown on Home and Profile.
+- Home screen starts the first recommended rep directly with a sensible default load.
 - 7-day balance map that turns weak-mode data into a practical weekly routine.
 - Mode selection marks today’s recommended reps directly in the list.
 - Training-load screen explains what the selected session trains.

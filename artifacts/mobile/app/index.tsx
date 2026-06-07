@@ -81,6 +81,8 @@ export default function HomeScreen() {
     records: profile.records,
     trainingStats: profile.trainingStats,
   });
+  const firstPlanStep = plan.steps[0];
+  const firstPlanDifficulty = firstPlanStep.mode === "daily" ? "easy" : "medium";
   const logoAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -157,7 +159,12 @@ export default function HomeScreen() {
           icon="fitness"
           bgColor={colors.primary}
           textColor={colors.primaryForeground}
-          onPress={() => router.push("/modes")}
+          onPress={() =>
+            router.push({
+              pathname: "/difficulty",
+              params: { mode: firstPlanStep.mode, difficulty: firstPlanDifficulty },
+            })
+          }
           testID="btn-start-plan"
         />
         <MenuButton
