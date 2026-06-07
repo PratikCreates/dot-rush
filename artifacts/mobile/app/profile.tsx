@@ -17,7 +17,13 @@ import type { IoniconName } from "@/types/icons";
 import { useColors } from "@/hooks/useColors";
 import { usePlayer } from "@/context/PlayerContext";
 import { THEMES, THEME_NAMES } from "@/engine/themes";
-import { COGNITIVE_FOCUS, TRAINING_ORDER, getDailyTrainingPlan } from "@/engine/brainTraining";
+import {
+  COGNITIVE_FOCUS,
+  DIFFICULTY_LOAD,
+  TRAINING_ORDER,
+  getDailyTrainingPlan,
+  getWeeklyTrainingPlan,
+} from "@/engine/brainTraining";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -36,6 +42,7 @@ export default function ProfileScreen() {
     records: profile.records,
     trainingStats,
   });
+  const weeklyPlan = getWeeklyTrainingPlan({ weakestMode: plan.weakestMode });
   const trainedModeStats = TRAINING_ORDER
     .map((mode) => ({ mode, stat: trainingStats[mode] }))
     .filter((item) => item.stat && item.stat.sessions > 0);
@@ -173,6 +180,32 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
+          7-DAY BALANCE MAP
+        </Text>
+        <View style={[styles.weekCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          {weeklyPlan.map((item) => (
+            <TouchableOpacity
+              key={`${item.day}-${item.mode}`}
+              style={[styles.weekRow, { borderColor: COGNITIVE_FOCUS[item.mode].color + "44" }]}
+              onPress={() => router.push({ pathname: "/difficulty", params: { mode: item.mode } })}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.weekDay, { color: COGNITIVE_FOCUS[item.mode].color }]}>
+                {item.day}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.weekTitle, { color: colors.foreground }]}>
+                  {item.focus} · {DIFFICULTY_LOAD[item.load].label}
+                </Text>
+                <Text style={[styles.weekInstruction, { color: colors.mutedForeground }]}>
+                  {item.instruction}
+                </Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -431,6 +464,37 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     lineHeight: 14,
     marginTop: 5,
+  },
+  weekCard: {
+    padding: 12,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    gap: 8,
+    marginBottom: 12,
+  },
+  weekRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 13,
+    padding: 10,
+  },
+  weekDay: {
+    width: 34,
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+    textAlign: "center",
+  },
+  weekTitle: {
+    fontSize: 12,
+    fontFamily: "Inter_700Bold",
+  },
+  weekInstruction: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
+    lineHeight: 14,
+    marginTop: 2,
   },
   statsGrid: {
     flexDirection: "row",

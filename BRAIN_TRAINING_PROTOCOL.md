@@ -35,6 +35,16 @@ Across a week, touch all six systems at least once:
 
 The profile screen highlights undertrained systems and the weakest average score so the next rep has a concrete purpose.
 
+The 7-day balance map uses this rhythm:
+
+1. Daily Neuroset baseline.
+2. The current weakest system.
+3. Focus Sprint for sequencing and steady scanning.
+4. Pressure Control at a lower load.
+5. Adaptive Flow for endurance.
+6. Processing Speed at peak load only if control is clean.
+7. Precision Lab as a low-error check.
+
 ## Safety And Limits
 
 - Keep sessions short; fatigue produces noisy scores.

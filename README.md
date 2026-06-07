@@ -74,6 +74,7 @@ See [BRAIN_TRAINING_PROTOCOL.md](BRAIN_TRAINING_PROTOCOL.md) for the recommended
 - Results screen with a readable cognitive report card.
 - Adaptive post-run training recommendations.
 - Shared daily training plan shown on Home and Profile.
+- 7-day balance map that turns weak-mode data into a practical weekly routine.
 - Mode selection marks today’s recommended reps directly in the list.
 - Training-load screen explains what the selected session trains.
 - Profile screen with a three-rep plan, weakest-mode focus, and training scoreboard.
@@ -178,6 +179,7 @@ The brain-training test validates:
 - clean runs score higher than messy runs
 - adaptive recommendations distinguish increase and recovery reps
 - daily training plans target uncovered and weakest cognitive systems
+- weekly training plans start with a baseline rep and schedule the weakest system early
 - training stats update averages, best score, wrong taps, and failed runs correctly
 
 Expo may print patch-version warnings for installed SDK packages. Those warnings are non-blocking as long as the build and typecheck finish successfully.
@@ -199,6 +201,7 @@ Expo may print patch-version warnings for installed SDK packages. Those warnings
 - `scoring.ts`: gameplay score and stars
 - `brainTraining.ts`: cognitive focus metadata and brain-score math
 - `getDailyTrainingPlan`: shared daily prescription logic for Home and Profile
+- `getWeeklyTrainingPlan`: 7-day balance map shown on Profile
 - `BRAIN_TRAINING_PROTOCOL.md`: daily-use protocol and safety limits
 - `themes.ts`: unlockable visual themes
 
@@ -221,7 +224,6 @@ Expo may print patch-version warnings for installed SDK packages. Those warnings
 
 High-impact next improvements:
 
-- Guided 7-day training plans.
 - Haptic feedback for correct rhythm and wrong-tap recovery.
 - Audio cues for attention and speed modes.
 - Global and friend leaderboards.

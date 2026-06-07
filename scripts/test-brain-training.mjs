@@ -29,6 +29,7 @@ const {
   getTrainingRecommendation,
   updateTrainingStat,
   getDailyTrainingPlan,
+  getWeeklyTrainingPlan,
   COGNITIVE_FOCUS,
   DIFFICULTY_LOAD,
   TRAINING_ORDER,
@@ -179,5 +180,27 @@ const dailyLeastPlayedPlan = getDailyTrainingPlan({
 assert.equal(dailyLeastPlayedPlan.nextMode, "daily", "daily can still be the least-played mode internally");
 assert.notEqual(dailyLeastPlayedPlan.steps[0].mode, "daily", "starter must remain actionable after daily completion");
 assert.equal(dailyLeastPlayedPlan.steps[0].mode, "timed", "starter should choose the least-covered non-daily mode");
+
+const weeklyPlan = getWeeklyTrainingPlan({
+  weakestMode: "challenge",
+  now: Date.parse("2026-06-07T09:00:00.000Z"),
+});
+assert.equal(weeklyPlan.length, 7, "weekly protocol should cover a full week");
+assert.equal(weeklyPlan[0].mode, "daily", "weekly protocol should begin with a baseline daily rep");
+assert.equal(weeklyPlan[1].mode, "challenge", "weakest mode should get the second slot");
+assert.equal(weeklyPlan[1].load, "medium", "weakest-mode slot should use training load");
+assert.equal(new Set(weeklyPlan.map((item) => item.day)).size, 7, "weekly rows should have distinct day labels");
+assert.equal(new Set(weeklyPlan.slice(0, 6).map((item) => item.mode)).size, 6, "first six days should cover each system once");
+assert.ok(
+  weeklyPlan.every((item) => COGNITIVE_FOCUS[item.mode] && DIFFICULTY_LOAD[item.load] && item.instruction.length > 20),
+  "weekly rows should be display-ready"
+);
+
+const dailyWeakestWeeklyPlan = getWeeklyTrainingPlan({
+  weakestMode: "daily",
+  now: Date.parse("2026-06-07T09:00:00.000Z"),
+});
+assert.equal(dailyWeakestWeeklyPlan[0].mode, "daily");
+assert.equal(dailyWeakestWeeklyPlan[1].mode, "accuracy", "daily weakest should fall back to a non-daily control rep");
 
 console.log("brain-training tests passed");

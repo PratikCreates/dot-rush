@@ -119,6 +119,14 @@ export interface DailyTrainingPlan {
   steps: TrainingPlanStep[];
 }
 
+export interface WeeklyTrainingDay {
+  day: string;
+  mode: GameMode;
+  load: Difficulty;
+  focus: string;
+  instruction: string;
+}
+
 export function getBrainScore({
   score,
   stars,
@@ -228,6 +236,47 @@ export function getDailyTrainingPlan({
       },
     ],
   };
+}
+
+export function getWeeklyTrainingPlan({
+  weakestMode,
+  now = Date.now(),
+}: {
+  weakestMode?: GameMode;
+  now?: number;
+} = {}): WeeklyTrainingDay[] {
+  const start = new Date(now);
+  const instructionByMode: Record<GameMode, { load: Difficulty; instruction: string }> = {
+    daily: { load: "easy", instruction: "Use this as a clean baseline and avoid chasing speed." },
+    timed: { load: "medium", instruction: "Keep your eyes one dot ahead and finish without panic taps." },
+    accuracy: { load: "easy", instruction: "End the week with a low-error control check." },
+    challenge: { load: "easy", instruction: "Practice pressure recovery; slow down after the first mistake." },
+    endless: { load: "medium", instruction: "Stop after fatigue shows up; quality beats extra rounds." },
+    speedrun: { load: "hard", instruction: "Push pace only if the first half stays clean." },
+  };
+  const weakestNonDaily = weakestMode && weakestMode !== "daily" ? weakestMode : "accuracy";
+  const modeRotation: GameMode[] = [
+    "daily",
+    weakestNonDaily,
+    ...TRAINING_ORDER.filter((mode) => mode !== "daily" && mode !== weakestNonDaily),
+    weakestNonDaily === "accuracy" ? "timed" : "accuracy",
+  ];
+
+  return modeRotation.map((mode, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    const item = instructionByMode[mode];
+    const isWeaknessSlot = index === 1;
+    return {
+      day: date.toLocaleDateString("en-US", { weekday: "short" }),
+      mode,
+      load: isWeaknessSlot ? "medium" : item.load,
+      focus: COGNITIVE_FOCUS[mode].label,
+      instruction: isWeaknessSlot
+        ? "Give the weakest system one deliberate training rep."
+        : item.instruction,
+    };
+  });
 }
 
 export function updateTrainingStat({
