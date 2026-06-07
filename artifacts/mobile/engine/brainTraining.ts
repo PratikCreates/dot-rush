@@ -108,6 +108,8 @@ export interface TrainingPlanStep {
   shortTitle: string;
   detail: string;
   reason: string;
+  recommendedLoad: Difficulty;
+  loadReason: string;
 }
 
 export interface DailyTrainingPlan {
@@ -125,6 +127,38 @@ export interface WeeklyTrainingDay {
   load: Difficulty;
   focus: string;
   instruction: string;
+}
+
+export function getRecommendedTrainingLoad(stat?: CognitiveTrainingStat): {
+  load: Difficulty;
+  reason: string;
+} {
+  if (!stat || stat.sessions === 0) {
+    return {
+      load: "easy",
+      reason: "Start with a warm-up load until this system has a baseline.",
+    };
+  }
+
+  const avgErrors = stat.totalErrors / Math.max(1, stat.sessions);
+  if (stat.avgComposite >= 86 && avgErrors <= 1.5) {
+    return {
+      load: "hard",
+      reason: "Recent reps are clean enough for a peak-load challenge.",
+    };
+  }
+
+  if (stat.avgComposite < 62 || avgErrors >= 4) {
+    return {
+      load: "easy",
+      reason: "Use a recovery load to rebuild control before adding density.",
+    };
+  }
+
+  return {
+    load: "medium",
+    reason: "Training load is the right balance of challenge and control.",
+  };
 }
 
 export function getBrainScore({
@@ -193,6 +227,9 @@ export function getDailyTrainingPlan({
     starterMode !== "accuracy" && controlMode !== "accuracy"
       ? "accuracy"
       : TRAINING_ORDER.find((mode) => mode !== starterMode && mode !== controlMode && mode !== "daily") ?? "timed";
+  const starterLoad = getRecommendedTrainingLoad(trainingStats[starterMode]);
+  const controlLoad = getRecommendedTrainingLoad(trainingStats[controlMode]);
+  const closerLoad = getRecommendedTrainingLoad(trainingStats[closerMode]);
 
   return {
     headline: totalPuzzles < 3 ? "Build your baseline" : "Keep the system balanced",
@@ -213,6 +250,8 @@ export function getDailyTrainingPlan({
         reason: hasDailyToday
           ? "Daily anchor is complete; the next rep should cover an undertrained system."
           : "A daily anchor makes progress easier to compare.",
+        recommendedLoad: starterLoad.load,
+        loadReason: starterLoad.reason,
       },
       {
         mode: controlMode,
@@ -222,6 +261,8 @@ export function getDailyTrainingPlan({
           ? `Current average: ${trainingStats[controlMode]?.avgComposite}/100. ${COGNITIVE_FOCUS[controlMode].short}.`
           : COGNITIVE_FOCUS[controlMode].short,
         reason: "This is the lowest current training score or the least-covered system.",
+        recommendedLoad: controlLoad.load,
+        loadReason: controlLoad.reason,
       },
       {
         mode: closerMode,
@@ -233,6 +274,8 @@ export function getDailyTrainingPlan({
         reason: closerMode === "accuracy"
           ? "Ending with control practice prevents speed from becoming sloppy."
           : "A distinct closer keeps the session balanced instead of repeating one system.",
+        recommendedLoad: closerLoad.load,
+        loadReason: closerLoad.reason,
       },
     ],
   };

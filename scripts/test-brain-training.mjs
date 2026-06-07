@@ -30,6 +30,7 @@ const {
   updateTrainingStat,
   getDailyTrainingPlan,
   getWeeklyTrainingPlan,
+  getRecommendedTrainingLoad,
   COGNITIVE_FOCUS,
   DIFFICULTY_LOAD,
   TRAINING_ORDER,
@@ -41,6 +42,43 @@ assert.equal(TRAINING_ORDER.length, 6, "daily planning should cover all six mode
 assert.equal(DIFFICULTY_LOAD.easy.label, "Warm-up Load");
 assert.equal(DIFFICULTY_LOAD.medium.label, "Training Load");
 assert.equal(DIFFICULTY_LOAD.hard.label, "Peak Load");
+
+const newModeLoad = getRecommendedTrainingLoad(undefined);
+assert.equal(newModeLoad.load, "easy");
+assert.equal(newModeLoad.reason, "Start with a warm-up load until this system has a baseline.");
+assert.equal(
+  getRecommendedTrainingLoad({
+    sessions: 4,
+    avgComposite: 91,
+    bestComposite: 98,
+    totalErrors: 3,
+    totalTimeMs: 200_000,
+    lastPlayedAt: 1,
+  }).load,
+  "hard"
+);
+assert.equal(
+  getRecommendedTrainingLoad({
+    sessions: 3,
+    avgComposite: 58,
+    bestComposite: 70,
+    totalErrors: 5,
+    totalTimeMs: 200_000,
+    lastPlayedAt: 1,
+  }).load,
+  "easy"
+);
+assert.equal(
+  getRecommendedTrainingLoad({
+    sessions: 3,
+    avgComposite: 74,
+    bestComposite: 80,
+    totalErrors: 5,
+    totalTimeMs: 200_000,
+    lastPlayedAt: 1,
+  }).load,
+  "medium"
+);
 
 const cleanRep = getBrainScore({
   score: 720,
@@ -131,6 +169,9 @@ assert.equal(dailyPlan.steps[0].mode, "daily");
 assert.equal(dailyPlan.steps[0].shortTitle, "Daily Neuroset");
 assert.equal(dailyPlan.steps[1].shortTitle, "Precision Lab");
 assert.match(dailyPlan.steps[1].detail, /Current average: 61\/100/);
+assert.equal(dailyPlan.steps[0].recommendedLoad, "easy");
+assert.equal(dailyPlan.steps[1].recommendedLoad, "easy");
+assert.ok(dailyPlan.steps.every((step) => step.loadReason.length > 20), "daily steps should explain load choice");
 
 const completedDailyPlan = getDailyTrainingPlan({
   totalPuzzles: 8,
@@ -149,6 +190,7 @@ assert.notEqual(completedDailyPlan.steps[0].mode, "daily", "completed daily shou
 assert.equal(completedDailyPlan.steps[0].mode, completedDailyPlan.nextMode);
 assert.equal(new Set(completedDailyPlan.steps.map((step) => step.mode)).size, 3, "plan should avoid duplicate reps");
 assert.ok(completedDailyPlan.steps.every((step) => step.shortTitle.length > 0), "each step should have a stable display label");
+assert.ok(completedDailyPlan.steps.every((step) => DIFFICULTY_LOAD[step.recommendedLoad]), "each step should have a valid recommended load");
 assert.match(completedDailyPlan.steps[0].reason, /Daily anchor is complete/);
 
 const dailyLeastPlayedPlan = getDailyTrainingPlan({

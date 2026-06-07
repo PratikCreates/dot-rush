@@ -175,8 +175,34 @@ export default function ProfileScreen() {
                 <Text style={[styles.planStepDetail, { color: colors.mutedForeground }]}>
                   {item.detail}
                 </Text>
+                <View
+                  style={[
+                    styles.loadChip,
+                    { borderColor: COGNITIVE_FOCUS[item.mode].color + "55" },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      item.recommendedLoad === "hard"
+                        ? "flash"
+                        : item.recommendedLoad === "medium"
+                          ? "fitness"
+                          : "leaf"
+                    }
+                    size={12}
+                    color={COGNITIVE_FOCUS[item.mode].color}
+                  />
+                  <Text
+                    style={[
+                      styles.loadChipText,
+                      { color: COGNITIVE_FOCUS[item.mode].color },
+                    ]}
+                  >
+                    {DIFFICULTY_LOAD[item.recommendedLoad].label}
+                  </Text>
+                </View>
                 <Text style={[styles.planStepReason, { color: COGNITIVE_FOCUS[item.mode].color }]}>
-                  {item.reason}
+                  {item.reason} {item.loadReason}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.mutedForeground} />
@@ -458,6 +484,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     lineHeight: 16,
     marginTop: 2,
+  },
+  loadChip: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 7,
+  },
+  loadChipText: {
+    fontSize: 10,
+    fontFamily: "Inter_700Bold",
+    letterSpacing: 0.4,
   },
   planStepReason: {
     fontSize: 10,
